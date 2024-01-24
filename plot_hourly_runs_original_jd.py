@@ -42,10 +42,11 @@ def plot_ts(ds:xr.Dataset,
             start:str, 
             end:str, 
             Folder_plots:str, 
+            action:str, 
+            var:str,
             peak_time_lag:bool=False, 
             savefig:bool=False, 
-            action:str, 
-            var:str)->None:
+            )->None:
     """
     ds: xarray dataset that contains modeled results for all runs and observation data
     scales: list of scaling factors, eg ['0.7', '0.8', '0.9', '1.0', '1.1', '1.2']
@@ -138,7 +139,7 @@ def plot_ts(ds:xr.Dataset,
                 # plots_dir = os.path.join(working_folder, '_plots')
                 # os.makedirs(plots_dir, exist_ok=True)
                 # Save the figure
-                fig.savefig(os.path.join(Folder_plots, f'timeseries_{station_name}_{station_id}_{start.month, start.day}_{end.month,end.day}_{action}_{var}.jpg'), dpi=300)
+                fig.savefig(os.path.join(Folder_plots, f'timeseries_{station_name}_{station_id}_{start.year}{start.month}{start.day}-{end.year}{end.month}{end.day}_{action}_{var}.jpg'), dpi=300)
                 # print(f'saved to {timeseries_{station_name}_{station_id}_{start.month, start.day}_{end.month,end.day}.png}')
             else:
                 pass
@@ -371,7 +372,7 @@ print(f'saved combined observations and model runs to\n{fn_ds}')
 # whole TS
 # plot_ts(ds, scales, df_GaugeToPlot, start, end, Folder_plots, peak_time_lag=False, savefig=False)
 
-plot_ts(ds, scales, df_GaugeToPlot, '2015-01-01', '2018-02-21', Folder_plots, peak_time_lag=False, savefig=True, action='scaling', var='riverN')
+plot_ts(ds, scales, df_GaugeToPlot, '2015-01-01', '2018-02-21', Folder_plots, var='riverN', action='scaling', peak_time_lag=False, savefig=True)
 
 # # # peak event Jan-Feb
 # # plot_ts(ds, df_GaugeToPlot, '2015-01-01', '2015-02-14', Folder_plots, peak_time_lag=True, savefig=False)
