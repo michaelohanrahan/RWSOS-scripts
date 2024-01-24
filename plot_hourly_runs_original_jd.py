@@ -36,25 +36,33 @@ def create_file_path(base_dir, scale):
 
 
 # ------------ Plot hydrograph --------------
-def plot_ts(ds, df_GaugeToPlot, start, end, Folder_plots, peak_time_lag=False, savefig=False):
+def plot_ts(ds:xr.Dataset, 
+            scales:list, 
+            df_GaugeToPlot:pd.DataFrame, 
+            start:str, 
+            end:str, 
+            Folder_plots:str, 
+            peak_time_lag:bool=False, 
+            savefig:bool=False, 
+            action:str, 
+            var:str)->None:
     """
     ds: xarray dataset that contains modeled results for all runs and observation data
+    scales: list of scaling factors, eg ['0.7', '0.8', '0.9', '1.0', '1.1', '1.2']
     df_GaugeToPlot: pandas dataframe that contains the information about the wflow_id to plot,
                     see for instance: p:\11209265-grade2023\wflow\wflow_meuse_julia\wflow_meuse_202312\wflow_id_to_plot.csv
     start: start date to plot, eg '2015-01-01'
     end: end date to plot, eg '2015-12-31'
     Folder_plots: directory to save figures
     savefig: save the figures or not
+    Peak_time_lag: calculate the peak timing lag or not, and present in legend, only useful in the case of single events
+    action: The method, for the saved figure name e.g. scaling, offsetting, etc.
+    var: The variable, for the saved figure name e.g. riverN, that is being scaled or offsetted.
     """
-    translate = {
-        's07': 'scale: 0.7',
-        's08': 'scale: 0.8',
-        's09': 'scale: 0.9',
-        's11': 'scale: 1.1',
-        's12': 'scale: 1.2',
-        's10': 'scale: 1.0',
-        'Obs.': 'Observed',
-        }
+    # Define the scales for the legend
+    translate = {f's{scale.replace(".", "")}': f'scale: {scale}' for scale in scales}
+    translate['Obs.'] = 'Observed'
+    
     color_dict = {
         's07': '#377eb8',  # Blue
         's08': '#ff7f00',  # Orange
@@ -130,7 +138,7 @@ def plot_ts(ds, df_GaugeToPlot, start, end, Folder_plots, peak_time_lag=False, s
                 # plots_dir = os.path.join(working_folder, '_plots')
                 # os.makedirs(plots_dir, exist_ok=True)
                 # Save the figure
-                fig.savefig(Folder_plots+r'/timeseries_{station_name}_{station_id}_{start.month, start.day}_{end.month,end.day}_n.jpg', dpi=300)
+                fig.savefig(os.path.join(Folder_plots, f'timeseries_{station_name}_{station_id}_{start.month, start.day}_{end.month,end.day}_{action}_{var}.jpg'), dpi=300)
                 # print(f'saved to {timeseries_{station_name}_{station_id}_{start.month, start.day}_{end.month,end.day}.png}')
             else:
                 pass
@@ -246,14 +254,14 @@ def peak_timing_for_runs(ds, df_GaugeToPlot, plotfig=False):
 
 #%%
 # ======================= Set working folder =======================
-working_folder=r'p:/11209265-grade2023/wflow/wflow_meuse_julia/wflow_meuse_202401'
+working_folder=r'p:/11209265-grade2023/wflow/wflow_meuse_julia/wflow_meuse_20240122'
 sys.path.append(working_folder)
 Folder_staticgeoms = r'/staticgeoms'  # folder that contain staticgeoms
 Folder_plots = working_folder + r"/_plots"  # folder to save plots
 
 
 # ======================= Load model results from run_scale_river_n-*  =======================
-scales = ['0.7', '0.8', '0.9', '1.0', '1.1', '1.2']
+scales = ['0.7', '0.9', '1.0', '1.1']
 # Reading files into a dictionary
 model_runs = {f's{scale.replace(".", "")}': 
     pd.read_csv(create_file_path(working_folder, scale), parse_dates=True, index_col=0) for scale in scales}
@@ -353,14 +361,17 @@ for key, item in model_runs.items():
 
 
 # # save dataset
-# fn_ds = r'/_output/ds_obs_model_combined.nc'
-# ds.to_netcdf(working_folder+fn_ds)
+fn_ds = r'/_output/ds_obs_model_combined.nc'
+ds.to_netcdf(working_folder+fn_ds)
+print(f'saved combined observations and model runs to\n{fn_ds}')
 
 
 #%%
 # # ======================= Plot hydrograph =======================
-# # 2015 whole year
-# plot_ts(ds, df_GaugeToPlot, '2015-01-01', '2015-12-29', Folder_plots, peak_time_lag=False, savefig=False)
+# whole TS
+# plot_ts(ds, scales, df_GaugeToPlot, start, end, Folder_plots, peak_time_lag=False, savefig=False)
+
+plot_ts(ds, scales, df_GaugeToPlot, '2015-01-01', '2018-02-21', Folder_plots, peak_time_lag=False, savefig=True, action='scaling', var='riverN')
 
 # # # peak event Jan-Feb
 # # plot_ts(ds, df_GaugeToPlot, '2015-01-01', '2015-02-14', Folder_plots, peak_time_lag=True, savefig=False)
@@ -421,3 +432,4 @@ plt.rc('legend', fontsize=MEDIUM_SIZE)    # legend fontsize
 plt.rc('figure', titlesize=MEDIUM_SIZE)  # fontsize of the figure title
 
 peak_timing_for_runs(ds, df_GaugeToPlot, plotfig=True)
+# %%
