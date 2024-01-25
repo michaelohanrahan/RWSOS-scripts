@@ -36,6 +36,37 @@ def create_file_path(base_dir, scale):
     # Function to create file path
     return os.path.join(base_dir, f'run_scale_river_n-{scale}', f'run_river_n_{scale.replace(".", "")}', f'output_scalar_{scale.replace(".", "")}.csv')
 
+# ------------ Calculate NSE and NSE log --------------
+
+def calculate_nse_and_log_nse(observed, modelled):
+    """
+    Calculates the Nash-Sutcliffe Efficiency (NSE) and Log-Nash-Sutcliffe Efficiency (NSE_log) 
+    between observed and modelled data.
+    
+    Parameters:
+    observed (array-like): Array of observed data.
+    modelled (array-like): Array of modelled data.
+    
+    Returns:
+    nse (float): Nash-Sutcliffe Efficiency.
+    nse_log (float): Log-Nash-Sutcliffe Efficiency.
+    """
+    observed = np.array(observed)
+    modelled = np.array(modelled)
+
+    obs_mean = np.mean(observed)
+
+    numerator = np.sum((observed - modelled) ** 2)
+
+    denominator = np.sum((observed - obs_mean) ** 2)
+
+    nse = 1 - (numerator / denominator)
+
+    log_numerator = np.sum((np.log(observed + 1) - np.log(modelled + 1)) ** 2)
+    log_denominator = np.sum((np.log(observed + 1) - np.log(obs_mean + 1)) ** 2)
+    nse_log = 1 - (log_numerator / log_denominator)
+
+    return nse, nse_log
 
 #------------ Plot hydrograph --------------
 def plot_ts(ds:xr.Dataset, 
@@ -46,7 +77,8 @@ def plot_ts(ds:xr.Dataset,
             Folder_plots:str, 
             action:str, 
             var:str,
-            peaks_chosen:bool=True,
+            color_dict:dict,
+            font:dict,
             peak_time_lag:bool=False, 
             savefig:bool=False, 
             )->None:
@@ -66,21 +98,6 @@ def plot_ts(ds:xr.Dataset,
     # Define the scales for the legend
     translate = {f's{scale.replace(".", "")}': f'scale: {scale}' for scale in scales}
     translate['Obs.'] = 'Observed'
-    
-    color_dict = {
-        's07': '#377eb8',  # Blue
-        's08': '#ff7f00',  # Orange
-        's09': '#4daf4a',  # Green
-        's11': '#f781bf',  # Pink
-        's12': '#a65628',  # Brown
-        's10': '#984ea3',  # Purple
-        'Obs.': '#999999',  # Grey
-        }
-    # Define the font properties
-    font = {'family': 'serif',
-            'weight': 'normal',
-            'size': 16,
-            }
     
     for id in ds.wflow_id.values:
         station_name = df_GaugeToPlot.loc[df_GaugeToPlot['wflow_id']==id, 'station_name'].values[0]
@@ -143,8 +160,9 @@ def plot_ts(ds:xr.Dataset,
                 print('saving...')
                 plots_dir = os.path.join(working_folder, '_plots')
                 os.makedirs(plots_dir, exist_ok=True)
+                filename = f'timeseries_{station_name}_{station_id}_{start.year}{start.month}{start.day}-{end.year}{end.month}{end.day}_{action}_{var}.jpg'
                 # Save the figure
-                fig.savefig(os.path.join(Folder_plots, f'timeseries_{station_name}_{station_id}_{start.year}{start.month}{start.day}-{end.year}{end.month}{end.day}_{action}_{var}.jpg'), dpi=300)
+                fig.savefig(os.path.join(Folder_plots, filename), dpi=300)
                 # print(f'saved to {timeseries_{station_name}_{station_id}_{start.month, start.day}_{end.month,end.day}.png}')
             else:
                 pass
@@ -162,7 +180,6 @@ def plot_peaks_ts(ds:xr.Dataset,
             Folder_plots:str, 
             color_dict:dict,
             font:dict,
-            peak_time_lag:bool=False, 
             savefig:bool=False, 
             window:int=72
             )->None:
@@ -187,41 +204,48 @@ def plot_peaks_ts(ds:xr.Dataset,
 
         for run in ds_sub.runs.values:
             if run != 'Obs.':
-                print('first loop', run)
+                # print('first loop', run)
                 sim = ds_sub.sel(runs=run).Q
 
                 peaks_obs, timing_errors = peak_timing_errors(obs, sim, window=window)
 
                 peaks_sim = (peaks_obs + timing_errors).astype(int)
 
-                obs_Q = obs[peaks_obs].values
-                sim_Q = sim[peaks_obs].values
-
                 # Expand the inner dictionary with the inner loop
                 peak_dict[id][run] = (peaks_sim, timing_errors)
 
-                print(f'id: {id}, run: {run}, mean error: {np.mean(peak_dict[id][run][1])}')
+                # print(f'id: {id}, run: {run}, mean error: {np.mean(peak_dict[id][run][1])}')
                 
         peak_dict[id]['Obs.'] = (peaks_obs, timing_errors)
         
-        print('peak_dict', peak_dict)
+        # print('peak_dict', peak_dict)
 
         
-        obs_max_time = ds.sel(time=slice(start, end), runs='Obs.', wflow_id=id).Q.idxmax().values
-
         try:
             fig = go.Figure()
             
             for run in ds.runs.values:
                 if str(run) in ['s07', 's08','s09', 's10', 's11', 's12', 'Obs.']:
                     
-                    print('second loop', id, run)
+                    # print('second loop', id, run)
                     
                     subset = ds.sel(time=slice(start, end), runs=run, wflow_id=id).dropna(dim='time')  
-                    run_max_time = subset.sel(time=slice(obs_max_time - pd.Timedelta(hours=72), obs_max_time + pd.Timedelta(hours=72))).Q.idxmax().values
-                    dt = run_max_time - obs_max_time
-                    dt_hours = dt.astype('timedelta64[h]').item().total_seconds() / 3600
-
+                    
+                    obs = ds.sel(time=slice(start, end), runs='Obs.', wflow_id=id)
+                    sim = ds.sel(time=slice(start, end), runs=run, wflow_id=id)
+                    
+                    mask = ~obs.Q.isnull() & ~sim.Q.isnull()
+                    
+                    obs_filtered = obs.Q[mask]
+                    sim_filtered = sim.Q[mask]
+                    
+                    if len(obs_filtered) == len(sim_filtered):
+                        nse, nse_log = calculate_nse_and_log_nse(obs_filtered, sim_filtered)
+                    else:
+                        nse, nse_log = np.nan, np.nan
+                        print('nse, nse_log = np.nan, np.nan')    
+                        print(f'len(obs_filtered) {len(obs_filtered)} != len(sim_filtered) {len(sim_filtered)}')
+                    
                     if run == 'Obs.':
                         label = f'{translate[run]}'
                         # fig add dots on the obs peaks using peak_dict[id][run][0]
@@ -240,13 +264,10 @@ def plot_peaks_ts(ds:xr.Dataset,
                             name='Obs. Peaks',
                             marker=dict(color='red', size=8)
                         ))
-                        print('obs plotted')
-                        
-                    elif peak_time_lag==True:
-                        label = f'{translate[run]}, avg model lag = {np.mean(peak_dict[id][run][1]):.2f} hours'
-                        
+                        # print('obs plotted')
+                              
                     else:
-                        label = f'{run}: {np.mean(peak_dict[id][run][1]):.2f} +/- {np.std(peak_dict[id][run][1]):.2f} h'  
+                        label = f'{run}: {np.mean(peak_dict[id][run][1]):.2f} +/- {np.std(peak_dict[id][run][1]):.2f}h'+'\n$NSE$:'+f'{nse:.3f}'+' $NSE_{log}$:'+f'{nse_log:.3f}'
                         fig.add_trace(go.Scatter(
                             x=subset.time.values,
                             y=subset.Q.values,
@@ -262,7 +283,7 @@ def plot_peaks_ts(ds:xr.Dataset,
                             name=f'{run} Peaks',
                             marker=dict(color=color_dict[str(run)], size=8)
                         ))
-                        print('sim plotted')
+                        # print('sim plotted')
                         
 
             fig.update_layout(
@@ -289,7 +310,7 @@ def plot_peaks_ts(ds:xr.Dataset,
 
 
 # ------------ Compute peak timing errors for all runs (and plot analysis results) --------------
-def peak_timing_for_runs(ds, df_GaugeToPlot, plotfig=False):
+def peak_timing_for_runs(ds, df_GaugeToPlot, folder_plots, action, var, plotfig=False, savefig=False):
     for id in ds.wflow_id.values:
         station_name = df_GaugeToPlot.loc[df_GaugeToPlot['wflow_id']==id, 'station_name'].values[0]
         station_id = id
@@ -381,6 +402,13 @@ def peak_timing_for_runs(ds, df_GaugeToPlot, plotfig=False):
                 plt.tight_layout()
                 plt.show()
                 
+                if savefig:
+                    timeseries_folder = os.path.join(folder_plots, 'Event_Timing_Metrics')
+                    os.makedirs(timeseries_folder, exist_ok=True)
+                    filename = f'PeakTimingMetrics_{station_name}_{station_id}_{start.year}{start.month}{start.day}-{end.year}{end.month}{end.day}_{action}_{var}.png'
+                    plt.savefig(os.path.join(timeseries_folder, filename), dpi=300)
+            if savefig == True and plotfig == False:
+                print('plotfig is False, no figure saved.')
             else:
                 pass
         
@@ -533,9 +561,22 @@ peak_timing_info = plot_peaks_ts(ds,
                                  df_GaugeToPlot,
                                  start, end,
                                  Folder_plots,
-                                    color_dict,
-                                    font,
-                                    peak_time_lag=False, savefig=True, window=30)
+                                 color_dict,
+                                 font,
+                                 savefig=True,
+                                 window=30)
+
+plot_ts(ds, 
+        scales, 
+        df_GaugeToPlot, 
+        start, end, 
+        Folder_plots, 
+        action='scaling',
+        var='riverN',
+        peak_time_lag=False, 
+        savefig=True,
+        color_dict=color_dict, 
+        font=font) 
 
 # # # peak event Jan-Feb
 # # plot_ts(ds, df_GaugeToPlot, '2015-01-01', '2015-02-14', Folder_plots, peak_time_lag=True, savefig=False)
@@ -595,5 +636,11 @@ plt.rc('ytick', labelsize=MEDIUM_SIZE)    # fontsize of the tick labels
 plt.rc('legend', fontsize=MEDIUM_SIZE)    # legend fontsize
 plt.rc('figure', titlesize=MEDIUM_SIZE)  # fontsize of the figure title
 
-peak_timing_for_runs(ds, df_GaugeToPlot, plotfig=True)
+peak_timing_for_runs(ds, 
+                     df_GaugeToPlot, 
+                     Folder_plots, 
+                     action='scaling',
+                     var='riverN',
+                     plotfig=True, 
+                     savefig=True)
 # %%
