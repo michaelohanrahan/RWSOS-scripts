@@ -20,7 +20,7 @@ import os
 
 # self defined functions
 from func_plot_signature import plot_signatures, plot_hydro
-from func_io import read_filename_txt, read_lakefile
+from file_inspection.func_io import read_filename_txt, read_lakefile
 from peak_metrics import peak_timing_errors
 
 

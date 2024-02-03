@@ -16,7 +16,7 @@ sys.path.append(R"c:\Users\buitink\OneDrive - Stichting Deltares\Documents\GitHu
 sys.path.append(R"C:\Users\buitink\Documents\GitHub\Deltares_scripts")
 
 from func_plot_signature import plot_signatures, plot_hydro
-from func_io import read_filename_txt, read_lakefile
+from file_inspection.func_io import read_filename_txt, read_lakefile
 # from func_plot_signature import plot_hydro
 
 model_runs = dict(
