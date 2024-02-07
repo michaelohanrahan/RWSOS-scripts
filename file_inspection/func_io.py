@@ -3,7 +3,7 @@ from datetime import datetime
 
 def read_filename_txt(filename):
     """
-    Reads a CSV file and returns a pandas DataFrame.
+    Reads a CSV file, separated by ';' and returns a pandas DataFrame.
 
     Parameters:
     filename (str): The path to the CSV file.

@@ -8,33 +8,33 @@ import numpy as np
 import os
 import xarray as xr
 import pandas as pd
-import geopandas as gpd
 from datetime import datetime
 from tqdm import tqdm
 import matplotlib.pyplot as plt
+
 
 ##########/==-- Local Func --==/#############
 import sys
 sys.path.append(r"P:\11209265-grade2023\wflow\wflow_rhine_julia\wflow_rhine_202311\_scripts")
 
-from func_plot_signature import plot_signatures, plot_hydro
+from hydro_plotting.hydro_signatures import plot_signatures, plot_hydro
 from file_inspection.func_io import read_filename_txt, read_lakefile
 # from func_plot_signature import plot_hydro
 
 
-# model_runs = dict(
-#     # fl1d = pd.read_csv(R'..\fl1d_2023_2015_hourly_output.csv', parse_dates=True, index_col=0),
-#     # fl1d_latest = pd.read_csv(R'..\fl1d_latest_2015.csv', parse_dates=True, index_col=0),
-#     n05 = pd.read_csv(R"P:\11209265-grade2023\wflow\wflow_rhine_julia\wflow_rhine_202311\run_mannings_n-0.05\output_0612_initialcond_005.csv", parse_dates=True, index_col=0),
-#     n072 = pd.read_csv(R"P:\11209265-grade2023\wflow\wflow_rhine_julia\wflow_rhine_202311\run_mannings_n-0.072\output_0612_initialcond_0072.csv", parse_dates=True, index_col=0),
-#     n08 = pd.read_csv(R"P:\11209265-grade2023\wflow\wflow_rhine_julia\wflow_rhine_202311\run_mannings_n-0.08\output_0612_initialcond_008.csv", parse_dates=True, index_col=0),
-#     n09 = pd.read_csv(R"P:\11209265-grade2023\wflow\wflow_rhine_julia\wflow_rhine_202311\run_mannings_n-0.09\output_0612_initialcond_009.csv", parse_dates=True, index_col=0)   
-# )
+model_runs = dict(
+    s07 = pd.read_csv(R"P:\11209265-grade2023\wflow\wflow_rhine_julia\wflow_rhine_202311\run_scale_river_n-0.7\output_scalar07.csv", parse_dates=True, index_col=0),
+    s08 = pd.read_csv(R"P:\11209265-grade2023\wflow\wflow_rhine_julia\wflow_rhine_202311\run_scale_river_n-0.8\output_scalar08.csv", parse_dates=True, index_col=0),
+    n072 = pd.read_csv(R"P:\11209265-grade2023\wflow\wflow_rhine_julia\wflow_rhine_202311\run_mannings_n-0.072\output_0612_initialcond_0072.csv", parse_dates=True, index_col=0),
+    s09 = pd.read_csv(R"P:\11209265-grade2023\wflow\wflow_rhine_julia\wflow_rhine_202311\run_scale_river_n-0.9\output_scalar09.csv", parse_dates=True, index_col=0),
+    s11 = pd.read_csv(R"P:\11209265-grade2023\wflow\wflow_rhine_julia\wflow_rhine_202311\run_scale_river_n-1.1\output_scalar11.csv", parse_dates=True, index_col=0),
+    s12 = pd.read_csv(R"P:\11209265-grade2023\wflow\wflow_rhine_julia\wflow_rhine_202311\run_scale_river_n-1.2\output_scalar12.csv", parse_dates=True, index_col=0)   
+)
 
 
 idx_start = 365
 Folder_plots = "../_figures_hourly/"
-toml_default_fn = "../wflow_sbm_hourly_manning_n.toml"
+toml_default_fn = r"..\wflow_sbm_hourly_updated_states_L.toml"
 
 
 # Get stations within model
@@ -58,7 +58,8 @@ for gauge_map in gauges_maps:
     try:
         # print(gauge_map)
         if gauge_map  == 'gauges_fews':
-            mod_stations = np.append(mod_stations, mod.staticgeoms[gauge_map]['WFLOW_ID'].values)
+            pass
+            # mod_stations = np.append(mod_stations, mod.staticgeoms[gauge_map]['WFLOW_ID'].values)
         elif gauge_map == 'gauges_SOBEK':
             mod_stations = np.append(mod_stations, mod.staticgeoms[gauge_map]['wflow_ID'].values)
         elif gauge_map == 'gauges_grdc':
@@ -189,7 +190,7 @@ rng = pd.date_range('2015-01-01', '2015-12-31', freq='H')
 #     freq="H"
 # )
 
-intersect = set(df_obs.columns) & set(runs_dict['n05'].columns) & set(runs_dict['fl1d'].columns)
+intersect = set(df_obs.columns) & set(runs_dict['s08'].columns)
 #filter the stations_dict to only include the common keys
 new_stations_dict = {int(key):stations_dict[int(key)] for key in intersect}
 
@@ -223,19 +224,27 @@ for key, item in runs_dict.items():
         ds['Q'].loc[dict(runs = key, stations=int(sub))] = item_padded[sub]
 # ds['Q'].loc[dict(runs = label_01)] = run01[['Q_' + sub for sub in list(map(str,list(stations_dic.values())))]][:len(rng)]
 
-
+translate = {
+    's07': 'scale: 0.7
+    's08': 'scale: 0.8',
+    's09': 'scale: 0.9',
+    's11': 'scale: 1.1',
+    's12': 'scale: 1.2',
+    'n072': 'Default',
+    'Obs.': 'Observed',
+}
 
 #%%
 for station_name, station_id in tqdm(stations_dict.items()):
-    # try:
-    if station_name == 709:
+    try:
         print('success', station_id)
 
         fig, ax = plt.subplots(figsize=(10,10))
         plt.title(f'{station_name}, {station_id}')
 
         for run in ds['runs'].values:
-            if run in ['n05','n072', 'fl1d', 'Obs.']:
+            print(run)
+            if str(run) in ['s08','s07','s09','n072', 's11', 'Obs.']:
                 # Select time starting from '2015-01-03' for all runs and stations
                 ds_time_selected = ds['Q'].sel()
                 # Select the specific run and station from ds_time_selected
@@ -244,12 +253,14 @@ for station_name, station_id in tqdm(stations_dict.items()):
                                 stations=station_name).dropna(dim='time')  
                 
                 # Plot the subset for this run
-                subset.Q.plot(ax=ax, label=run)
+                subset.Q.plot(ax=ax, label=translate[run])
             else:
                 continue
-
         # Add the legend outside of the loop
         ax.legend()
+    except:
+        print('fail', station_id)
+        pass
 
 
 for station_name, station_id in tqdm(stations_dict.items()):

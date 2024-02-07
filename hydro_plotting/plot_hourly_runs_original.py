@@ -16,28 +16,19 @@ import matplotlib.pyplot as plt
 import sys
 sys.path.append(r"P:\11209265-grade2023\wflow\wflow_rhine_julia\wflow_rhine_202311\_scripts")
 
-from func_plot_signature import plot_signatures, plot_hydro
+from hydro_plotting.hydro_signatures import plot_signatures, plot_hydro
 from file_inspection.func_io import read_filename_txt, read_lakefile
 # from func_plot_signature import plot_hydro
 
 
 model_runs = dict(
-    s07 = pd.read_csv(R"P:\11209265-grade2023\wflow\wflow_rhine_julia\wflow_rhine_202311\run_scale_river_n-0.7\output_scalar07.csv", parse_dates=True, index_col=0),
-    s08 = pd.read_csv(R"P:\11209265-grade2023\wflow\wflow_rhine_julia\wflow_rhine_202311\run_scale_river_n-0.8\output_scalar08.csv", parse_dates=True, index_col=0),
-    n072 = pd.read_csv(R"P:\11209265-grade2023\wflow\wflow_rhine_julia\wflow_rhine_202311\run_mannings_n-0.072\output_0612_initialcond_0072.csv", parse_dates=True, index_col=0),
-    s09 = pd.read_csv(R"P:\11209265-grade2023\wflow\wflow_rhine_julia\wflow_rhine_202311\run_scale_river_n-0.9\output_scalar09.csv", parse_dates=True, index_col=0),
-    s11 = pd.read_csv(R"P:\11209265-grade2023\wflow\wflow_rhine_julia\wflow_rhine_202311\run_scale_river_n-1.1\output_scalar11.csv", parse_dates=True, index_col=0),
+    s07 = pd.read_csv(R"P:\11209265-grade2023\wflow\wflow_meuse_julia\wflow_meuse_202312\run_scale_river_n-0.7\run_river_n_07\output_scalar_07.csv", parse_dates=True, index_col=0),
+    s08 = pd.read_csv(R"P:\11209265-grade2023\wflow\wflow_meuse_julia\wflow_meuse_202312\run_scale_river_n-0.8\run_river_n_08\output_scalar_08.csv", parse_dates=True, index_col=0),
+    s1 = pd.read_csv(R"P:\11209265-grade2023\wflow\wflow_meuse_julia\wflow_meuse_202312\run_scale_river_n-1.0\run_river_n_10\output_scalar_10.csv", parse_dates=True, index_col=0),
+    s09 = pd.read_csv(R"P:\11209265-grade2023\wflow\wflow_meuse_julia\wflow_meuse_202312\run_scale_river_n-0.9\run_river_n_09\output_scalar_09.csv", parse_dates=True, index_col=0),
+    s11 = pd.read_csv(R"P:\11209265-grade2023\wflow\wflow_meuse_julia\wflow_meuse_202312\run_scale_river_n-1.1\run_river_n_11\output_scalar_11.csv", parse_dates=True, index_col=0),
     # s12 = pd.read_csv(R"P:\11209265-grade2023\wflow\wflow_rhine_julia\wflow_rhine_202311\run_scale_river_n-1.2\output_scalar12.csv", parse_dates=True, index_col=0)   
 )
-
-# model_runs = dict(
-#     # fl1d = pd.read_csv(R'..\fl1d_2023_2015_hourly_output.csv', parse_dates=True, index_col=0),
-#     # fl1d_latest = pd.read_csv(R'..\fl1d_latest_2015.csv', parse_dates=True, index_col=0),
-#     n05 = pd.read_csv(R"P:\11209265-grade2023\wflow\wflow_rhine_julia\wflow_rhine_202311\run_mannings_n-0.05\output_0612_initialcond_005.csv", parse_dates=True, index_col=0),
-#     n072 = pd.read_csv(R"P:\11209265-grade2023\wflow\wflow_rhine_julia\wflow_rhine_202311\run_mannings_n-0.072\output_0612_initialcond_0072.csv", parse_dates=True, index_col=0),
-#     n08 = pd.read_csv(R"P:\11209265-grade2023\wflow\wflow_rhine_julia\wflow_rhine_202311\run_mannings_n-0.08\output_0612_initialcond_008.csv", parse_dates=True, index_col=0),
-#     n09 = pd.read_csv(R"P:\11209265-grade2023\wflow\wflow_rhine_julia\wflow_rhine_202311\run_mannings_n-0.09\output_0612_initialcond_009.csv", parse_dates=True, index_col=0)   
-# )
 
 idx_start = min([len(value) for item, value in model_runs.items()]) -1
 Folder_plots = "../_plots/"
@@ -48,62 +39,31 @@ toml_default_fn = r"P:\11209265-grade2023\wflow\wflow_rhine_julia\wflow_rhine_20
 gauges_maps = [
     # 'gauges_wflow-gauges-ahr',
     'gauges',
-    'gauges_SOBEK',
-    'gauges_wflow-gauges-extra',
-    'gauges_wflow-gauges-mainsub',
-    'gauges_wflow-gauges-rhineriv'
+    'gauges_grdc',
+    'gauges_hbv',
+    'gauges_locs',
+    'gauges_S01',
+    'gauges_S01',
+    'gauges_S02',
+    'gauges_S03',
+    'gauges_S04',
+    'gauges_S05',
+    'gauges_S06',
+    'gauges_Sall',
 ]
 
 # Get stations within model
-mod_name = "wflow_sbm_hourly_updated_states_L"
-root = r"P:\11209265-grade2023\wflow\wflow_rhine_julia\wflow_rhine_202311"
+mod_name = "wflow_sbm_run_hourly_scale_river_n"
+root = r"P:\11209265-grade2023\wflow\wflow_meuse_julia\wflow_meuse_202312"
 mod = WflowModel(root, config_fn=os.path.basename(mod_name), mode="r")
 
-
-# for i, name in enumerate(mod.staticgeoms['gauges_SOBEK']['shortName']):
-#     if name in df_locs.names.values:
-#         index = np.where(df_locs.names == name)[0]
-#         # print(f'Index of {name}: {index}')
-#         print(name)
-#         print(mod.staticgeoms['gauges_SOBEK'].index[i], mod.staticgeoms['gauges_SOBEK']['wflow_ID'][i])
-#         print(df_locs.index[index])
-
-sobek_tight_match = {5000: 709,
-                    5001: np.nan,
-                    5002: 539,
-                    5003: 541,
-                    5004: 696,
-                    5005: 708,
-                    5006: 538,
-                    5007: np.nan,
-                    5008: np.nan,
-                    5009: np.nan,
-                    5010: np.nan,
-                    5011: np.nan,
-                    5012: np.nan,
-                    5013: np.nan,
-                    5014: np.nan,
-                    5015: np.nan,
-                    5016: np.nan,
-                    5017: 645,
-                    5018: np.nan,
-                    5019: np.nan,
-                    5020: 693,
-                    5021: np.nan,
-                    5022: 688,
-                    5023: 705,
-                    5024: 695,
-                    5027: 704,
-                    5028: np.nan}
 
 mod_stations = np.array([])
 
 for gauge_map in gauges_maps:
-    # print(gauge_map)
+    print(gauge_map)
     try:
-        print(gauge_map)
         mod_stations = np.append(mod_stations, mod.staticgeoms[gauge_map]["fid"].values)
-        print(gauge_map, 'successful')
     except KeyError:
         if gauge_map == "gauges":
             mod_stations = np.append(mod_stations, 709)
@@ -173,6 +133,7 @@ for col in df_obs.columns:
             ls.append(station)
 print(ls)
     
+
 ### #make dataset
 
 variables = ['Q']
@@ -187,9 +148,10 @@ rng = pd.date_range(
     freq="H"
 )
 
+
+
 obs_keys = []
 
-for key in df_obs.columns:
 for key in df_obs.columns:
     if int(key.split("_")[1]) in mod_stations:
         obs_keys.append(key)
@@ -214,7 +176,7 @@ for key, item in runs_dict.items():
 
     # ds['Q'].loc[dict(runs = key)] = item[['Q_' + sub for sub in list(map(str,list(stations_dict.keys())))]].loc[rng]
     for sub in list(map(str,list(stations_dict.keys()))):
-        print(sub)
+        
         try:
             
             if sub == "709":
@@ -226,12 +188,9 @@ for key, item in runs_dict.items():
                 print(sub, key, sub_gauge, 'appended')
             
             else:
-                print('ELSE')
-                column = next((col for col in item.columns if col.split('_')[-1]==sub), None)
-                print('Column:', column)
+                column = next((col for col in item.columns if col.endswith(str(sub))), None)
                 if column:
-                    ds['Q'].loc[dict(runs = key, stations=sub)] = item.loc[rng, column]
-                    print(sub, key, column, 'appended')
+                    ds['Q'].loc[dict(runs = key, stations=int(sub))] = item.loc[rng, column]
 
         except KeyError as e:
             print(e)
@@ -261,7 +220,6 @@ color_dict = {
 }
 
 # translate = {
-#     'n05': 'n: 0.05',
 #     'n07': 'n: 0.07',
 #     'n08': 'n: 0.08',
 #     'n09': 'n: 0.09',
@@ -310,16 +268,13 @@ def plot_ts(start, end, savefig=False):
 
                 for run in ds['runs'].values:
                     
-                    # if str(run) in ['s07', 's08','n072', 'Obs.']:
-                    if str(run) in ['n05', 'n09','n072', 'Obs.']:
-                        print('run in list', run)
+                    if str(run) in ['s07', 's08','n072', 'Obs.']:
+                    # if str(run) in ['n05', 'n09','n072', 'Obs.']:
                         # Select the specific run and station from ds
                         subset = ds.sel(time=slice(start, end),
                                         runs=run, 
                                         stations=str(station_id)).dropna(dim='time')  
-                        
                         print('subset', subset)
-                        
                         # Get the time index of the maximum value in this run
                         run_max_time = subset.sel(time=slice(obs_max_time - pd.Timedelta(hours=72), obs_max_time + pd.Timedelta(hours=72))).Q.idxmax().values
                         # Calculate the difference in peak timing
@@ -345,7 +300,6 @@ def plot_ts(start, end, savefig=False):
                         # Plot the subset for this run
                         ax.plot(subset.time, subset.Q, label=label, c=color_dict[str(run)])
                     else:
-                        print('run not in list', run)
                         continue
                 # print('success', station_id)
                 # Add the legend outside of the loop
@@ -377,7 +331,7 @@ def plot_ts(start, end, savefig=False):
             print('not in mod_stations', station_id)
 
 
-plot_ts('2015-01-01', '2015-12-29', savefig=True)
+plot_ts('2015-01-01', '2015-12-29', savefig=False)
 plot_ts('2015-04-15', '2015-06-01', savefig=True)
 
 
@@ -392,9 +346,9 @@ for station_id, station_name in stations_dict.items():
         try:
             if station_id in s:
 
-                dsq = ds.sel(stations = str(station_id))#.sel(time = slice('1980-01-01', None))#.dropna(dim='time')
+                # dsq = ds.sel(stations = str(station_id))#.sel(time = slice('1980-01-01', None))#.dropna(dim='time')
 
-                dsq.sel(time=dsq.time[~dsq.Q.sel(runs="Obs.").isnull()].values)
+                # # dsq.sel(time=dsq.time[~dsq.Q.sel(runs="Obs.").isnull()].values)
 
                 # #plot hydro
                 # # plot_hydro(dsq, label_00, label_01, color_00, color_01, Folder_plots, station_name)
@@ -418,10 +372,10 @@ for station_id, station_name in stations_dict.items():
                 #dropna for signature calculations.
                 # dsq = ds.sel(stations = str(station_id))#.sel(time = slice('1980-01-01', None)).dropna(dim='time')
                 
-                plot_signatures(
-                    dsq=dsq, labels=list(runs_dict.keys()), colors=plot_colors,
-                    Folder_out=Folder_plots, station_name=station_name, station_id=station_id, save=True,
-                )
+                # plot_signatures(
+                #     dsq=dsq, labels=list(runs_dict.keys()), colors=plot_colors,
+                #     Folder_out=Folder_plots, station_name=station_name, station_id=station_id, save=True,
+                # )
         except Exception as e:
             print(e)
             pass

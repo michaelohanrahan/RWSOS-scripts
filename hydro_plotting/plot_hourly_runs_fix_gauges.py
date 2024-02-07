@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 import sys
 sys.path.append(r"P:\11209265-grade2023\wflow\wflow_rhine_julia\wflow_rhine_202311\_scripts")
 
-from func_plot_signature import plot_signatures, plot_hydro
+from hydro_plotting.hydro_signatures import plot_signatures, plot_hydro
 from file_inspection.func_io import read_filename_txt, read_lakefile
 # from func_plot_signature import plot_hydro
 

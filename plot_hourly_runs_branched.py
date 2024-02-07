@@ -2,7 +2,7 @@
 # TO-DO: add in hourly obs data for Borgharen (wflow_id=16)
 
 #%%
-#env: RWSOS
+#env: hydromt
 import hydromt
 from hydromt_wflow import WflowModel
 import xarray as xr
@@ -13,13 +13,13 @@ from tqdm import tqdm
 import numpy
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
-import fnmatch
-import glob
+
+
 import sys
 import os
 
-# self defined functions
-from hydro_plotting.hydro_signatures import plot_signatures, plot_hydro
+# sys.path.append(r'p:/11209265-grade2023/wflow/wflow_meuse_julia/scripting')
+from hydro_plotting import hydro_signatures
 from file_inspection.func_io import read_filename_txt, read_lakefile
 from metrics.peak_metrics import peak_timing_errors
 
@@ -27,7 +27,6 @@ from metrics.peak_metrics import peak_timing_errors
 # ======================= Functions =======================
 # ------------ Load data --------------
 def create_file_path(base_dir, scale):
-    #TODO: make this more general e.g. stem1, stem2, etc.
     """
     Function to create file path
     base_dir: directory that contains the model run results
@@ -40,7 +39,6 @@ def create_file_path(base_dir, scale):
 # ------------ Calculate NSE and NSE log --------------
 
 def calculate_nse_and_log_nse(observed, modelled):
-    #TODO: Borrow the interreg functions to have consistent objective functions
     """
     Calculates the Nash-Sutcliffe Efficiency (NSE) and Log-Nash-Sutcliffe Efficiency (NSE_log) 
     between observed and modelled data.
@@ -81,8 +79,8 @@ def plot_ts(ds:xr.Dataset,
             var:str,
             color_dict:dict,
             peak_time_lag:bool=False, 
-            savefig:bool=False,
-            font:dict={'family': 'serif', 'size': 16}, 
+            savefig:bool=False, 
+            font:dict={'family': 'serif', 'size': 16}
             )->None:
     """
     ds: xarray dataset that contains modeled results for all runs and observation data
@@ -97,13 +95,11 @@ def plot_ts(ds:xr.Dataset,
     action: The method, for the saved figure name e.g. scaling, offsetting, etc.
     var: The variable, for the saved figure name e.g. riverN, that is being scaled or offsetted.
     """
-    #TODO: make the legend an iterable, passed to the function
     # Define the scales for the legend
     translate = {f's{scale.replace(".", "")}': f'scale: {scale}' for scale in scales}
     translate['Obs.'] = 'Observed'
     
     for id in ds.wflow_id.values:
-        #TODO: make the 'station_name' key flexible, passed to the function
         station_name = df_GaugeToPlot.loc[df_GaugeToPlot['wflow_id']==id, 'station_name'].values[0]
         station_id = id
         
@@ -177,7 +173,7 @@ def plot_ts(ds:xr.Dataset,
 
     
 def plot_peaks_ts(ds:xr.Dataset, 
-            scales:list, 
+            run_keys:list, 
             df_GaugeToPlot:pd.DataFrame, 
             start:datetime, 
             end:datetime, 
@@ -185,21 +181,28 @@ def plot_peaks_ts(ds:xr.Dataset,
             color_dict:dict,
             savefig:bool=False, 
             window:int=72,
-            font:dict={'family': 'serif', 'size': 16}
+            font:dict={'family': 'serif', 'size': 16},
             )->None:
+    '''
+    ds: xarray dataset that contains modeled results for all runs and observation data
+        requires that the observations are indexed as 'Obs.'
+    '''
     
-    translate = {f's{scale.replace(".", "")}': f'scale: {scale}' for scale in scales}
+    #building a translation dict for legend very inflexible
+    translate = {f's{scale.replace(".", "")}': f'scale: {scale}' for scale in run_keys}
     translate['Obs.'] = 'Observed'
+    
+    id_key = 'wflow_id'
     
     # Store peak timing information in a dictionary
     peak_dict = {}
 
-    for id in ds.wflow_id.values:
-        station_name = df_GaugeToPlot.loc[df_GaugeToPlot['wflow_id']==id, 'station_name'].values[0]
+    for id in ds[id_key].values:
+        station_name = df_GaugeToPlot.loc[df_GaugeToPlot[id_key]==id, 'station_name'].values[0]
         station_id = id
 
-        # select a station
-        ds_sub = ds.sel(wflow_id=station_id)
+        # select a station using the id grouping and the sub selection id (station_id)
+        ds_sub = ds.sel({id_key:station_id})
 
         # get obs data
         obs = ds_sub.sel(runs='Obs.').Q
@@ -225,101 +228,97 @@ def plot_peaks_ts(ds:xr.Dataset,
         # print('peak_dict', peak_dict)
 
         
-        try:
-            fig = go.Figure()
-            
-            for run in ds.runs.values:
-                if str(run) in ['s07', 's08','s09', 's10', 's11', 's12', 'Obs.']:
+        # try:
+        fig = go.Figure()
+        
+        for run in ds.runs.values:
+                # print('second loop', id, run)
+                
+                subset = ds.sel(time=slice(start, end), runs=run, wflow_id=id).dropna(dim='time')  
+                
+                obs = ds.sel(time=slice(start, end), runs='Obs.', wflow_id=id)
+                sim = ds.sel(time=slice(start, end), runs=run, wflow_id=id)
+                
+                mask = ~obs.Q.isnull() & ~sim.Q.isnull()
+                
+                obs_filtered = obs.Q[mask]
+                sim_filtered = sim.Q[mask]
+                
+                if len(obs_filtered) == len(sim_filtered):
+                    nse, nse_log = calculate_nse_and_log_nse(obs_filtered, sim_filtered)
+                else:
+                    nse, nse_log = np.nan, np.nan
+                    print('nse, nse_log = np.nan, np.nan')    
+                    print(f'len(obs_filtered) {len(obs_filtered)} != len(sim_filtered) {len(sim_filtered)}')
+                
+                if run == 'Obs.':
+                    label = f'{translate[run]}'
                     
-                    # print('second loop', id, run)
+                    # fig add dots on the obs peaks using peak_dict[id][run][0]
+                    obs_peaks = peak_dict[id][run][0]
                     
-                    subset = ds.sel(time=slice(start, end), runs=run, wflow_id=id).dropna(dim='time')  
+                    print(run)
+                    fig.add_trace(go.Scatter(
+                        x=subset.time.values,
+                        y=subset.Q.values,
+                        mode='lines',
+                        name=label,
+                        line=dict(color=color_dict[str(run)])
+                    ))
                     
-                    obs = ds.sel(time=slice(start, end), runs='Obs.', wflow_id=id)
-                    sim = ds.sel(time=slice(start, end), runs=run, wflow_id=id)
+                    fig.add_trace(go.Scatter(
+                        x=subset.time[obs_peaks].values,
+                        y=subset.Q[obs_peaks].values,
+                        mode='markers',
+                        name='Obs. Peaks',
+                        marker=dict(color='red', size=8)
+                    ))
+                    # print('obs plotted')
+                            
+                else:
+                    label = f'{run}: {np.mean(peak_dict[id][run][1]):.2f} +/- {np.std(peak_dict[id][run][1]):.2f}h'+'\n$NSE$:'+f'{nse:.3f}'+' $NSE_{log}$:'+f'{nse_log:.3f}'
+                    print(run)
+                    fig.add_trace(go.Scatter(
+                        x=subset.time.values,
+                        y=subset.Q.values,
+                        mode='lines',
+                        name=label,
+                        line=dict(color=color_dict[str(run)])
+                    ))
+                    sim_peaks = peak_dict[id][run][0]
+                    fig.add_trace(go.Scatter(
+                        x=subset.time[sim_peaks].values,
+                        y=subset.Q[sim_peaks].values,
+                        mode='markers',
+                        name=f'{run} Peaks',
+                        marker=dict(color=color_dict[str(run)], size=8)
+                    ))
                     
-                    mask = ~obs.Q.isnull() & ~sim.Q.isnull()
-                    
-                    obs_filtered = obs.Q[mask]
-                    sim_filtered = sim.Q[mask]
-                    
-                    if len(obs_filtered) == len(sim_filtered):
-                        nse, nse_log = calculate_nse_and_log_nse(obs_filtered, sim_filtered)
-                    else:
-                        nse, nse_log = np.nan, np.nan
-                        print('nse, nse_log = np.nan, np.nan')    
-                        print(f'len(obs_filtered) {len(obs_filtered)} != len(sim_filtered) {len(sim_filtered)}')
-                    
-                    if run == 'Obs.':
-                        label = f'{translate[run]}'
-                        # fig add dots on the obs peaks using peak_dict[id][run][0]
-                        obs_peaks = peak_dict[id][run][0]
-                        fig.add_trace(go.Scatter(
-                            x=subset.time.values,
-                            y=subset.Q.values,
-                            mode='lines',
-                            name=label,
-                            line=dict(color=color_dict[str(run)])
-                        ))
-                        fig.add_trace(go.Scatter(
-                            x=subset.time[obs_peaks].values,
-                            y=subset.Q[obs_peaks].values,
-                            mode='markers',
-                            name='Obs. Peaks',
-                            marker=dict(color='red', size=8)
-                        ))
-                        # print('obs plotted')
-                              
-                    else:
-                        label = f'{run}: {np.mean(peak_dict[id][run][1]):.2f} +/- {np.std(peak_dict[id][run][1]):.2f}h'+'\n$NSE$:'+f'{nse:.3f}'+' $NSE_{log}$:'+f'{nse_log:.3f}'
-                        fig.add_trace(go.Scatter(
-                            x=subset.time.values,
-                            y=subset.Q.values,
-                            mode='lines',
-                            name=label,
-                            line=dict(color=color_dict[str(run)])
-                        ))
-                        sim_peaks = peak_dict[id][run][0]
-                        fig.add_trace(go.Scatter(
-                            x=subset.time[sim_peaks].values,
-                            y=subset.Q[sim_peaks].values,
-                            mode='markers',
-                            name=f'{run} Peaks',
-                            marker=dict(color=color_dict[str(run)], size=8)
-                        ))
-                        # print('sim plotted')
-                        
 
-            fig.update_layout(
-                title=f'{station_name} (id: {station_id})',
-                xaxis_title='Date (hourly timestep)',
-                yaxis_title='Discharge ($m^3s^{-1}$)',
-                font=font
-            )
+        fig.update_layout(
+            title=f'{station_name} (id: {station_id})',
+            xaxis_title='Date (hourly timestep)',
+            yaxis_title='Discharge ($m^3s^{-1}$)',
+            font=font
+        )
 
-            if savefig == True:
-                interactive_folder = os.path.join(Folder_plots, 'interactive')
-                os.makedirs(interactive_folder, exist_ok=True)
-                fig.write_html(os.path.join(interactive_folder, f'PeakSelection_{station_name}_{station_id}_{start.year}{start.month}{start.day}-{end.year}{end.month}{end.day}.html'))
-                fig.show()
-            else:
-                fig.show()
+        if savefig == True:
+            interactive_folder = os.path.join(Folder_plots, 'interactive')
+            os.makedirs(interactive_folder, exist_ok=True)
+            fig.write_html(os.path.join(interactive_folder, f'PeakSelection_{station_name}_{station_id}_{start.year}{start.month}{start.day}-{end.year}{end.month}{end.day}.html'))
+            fig.show()
+        else:
+            fig.show()
 
-        except Exception as e:
-            print('\nfail peak plots, station:', station_id, '\n')
-            print(e)
-            pass
+        # except Exception as e:
+        #     print('\nfail peak plots, station:', station_id, '\n')
+        #     print(e)
+        #     pass
         
     return peak_dict
 
 # ------------ Compute peak timing errors for all runs (and plot analysis results) --------------
-def peak_timing_for_runs(ds, 
-                         df_GaugeToPlot, 
-                         folder_plots, 
-                         action, 
-                         var, 
-                         plotfig=False, 
-                         savefig=False):
+def peak_timing_for_runs(ds, df_GaugeToPlot, folder_plots, action, var, plotfig=False, savefig=False):
     for id in ds.wflow_id.values:
         station_name = df_GaugeToPlot.loc[df_GaugeToPlot['wflow_id']==id, 'station_name'].values[0]
         station_id = id
@@ -450,7 +449,6 @@ def find_outputs(filtered_dirs, filetype):
         for file in glob.glob(os.path.join(dir, '**', '*.' + filetype), recursive=True):
             result.append(file)
     return result
-
 
 #%%
 
@@ -589,12 +587,12 @@ ds, df_GaugeToPlot = create_combined_hourly_dataset()
 
 
 #%%
+
 #make the color dictionary from a loop 
 color_list = ['#377eb8', '#ff7f00', '#4daf4a', '#f781bf', '#a65628', '#984ea3', '#999999'] #blue, orange, green,pink,brown,purple,grey
 
 run_keys.append('Obs.')
-color_dict = {f's{key}': color_list[i] for i, key in enumerate(run_keys)}
-
+color_dict = {f'{key}': color_list[i] for i, key in enumerate(run_keys)}
 
 # # ======================= Plot hydrograph =======================
 # whole TS
@@ -611,11 +609,11 @@ peak_timing_info = plot_peaks_ts(ds,
                                  start, end,
                                  Folder_plots,
                                  color_dict,
-                                 savefig=True,
-                                 window=30)
+                                 savefig=False,
+                                 window=72)
 
 plot_ts(ds, 
-        scales, 
+        run_keys, 
         df_GaugeToPlot, 
         start, end, 
         Folder_plots, 
