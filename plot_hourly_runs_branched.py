@@ -8,6 +8,7 @@ from hydromt_wflow import WflowModel
 import xarray as xr
 import numpy as np
 import pandas as pd
+import dask.dataframe as dd
 from datetime import datetime
 from tqdm import tqdm
 import numpy
@@ -17,14 +18,18 @@ import plotly.graph_objects as go
 
 import sys
 import os
+import glob
 
 # sys.path.append(r'p:/11209265-grade2023/wflow/wflow_meuse_julia/scripting')
 from hydro_plotting import hydro_signatures
-from file_inspection.func_io import read_filename_txt, read_lakefile
+from file_methods.func_io import read_filename_txt, read_lakefile
+import file_methods.postprocess as pp
 from metrics.peak_metrics import peak_timing_errors
 
 
 # ======================= Functions =======================
+
+#TODO: move to file_methods
 # ------------ Load data --------------
 def create_file_path(base_dir, scale):
     """
@@ -36,8 +41,8 @@ def create_file_path(base_dir, scale):
     # Function to create file path
     return os.path.join(base_dir, f'run_scale_river_n-{scale}', f'run_river_n_{scale.replace(".", "")}', f'output_scalar_{scale.replace(".", "")}.csv')
 
+#TODO: move to data_methods
 # ------------ Calculate NSE and NSE log --------------
-
 def calculate_nse_and_log_nse(observed, modelled):
     """
     Calculates the Nash-Sutcliffe Efficiency (NSE) and Log-Nash-Sutcliffe Efficiency (NSE_log) 
@@ -68,7 +73,8 @@ def calculate_nse_and_log_nse(observed, modelled):
 
     return nse, nse_log
 
-#------------ Plot hydrograph --------------
+#TODO: move to plotting_methods
+#====================== Plot hydrograph --------------
 def plot_ts(ds:xr.Dataset, 
             scales:list, 
             df_GaugeToPlot:pd.DataFrame, 
@@ -171,29 +177,7 @@ def plot_ts(ds:xr.Dataset,
             print(e)
             pass
 
-    
-def plot_peaks_ts(ds:xr.Dataset, 
-            run_keys:list, 
-            df_GaugeToPlot:pd.DataFrame, 
-            start:datetime, 
-            end:datetime, 
-            Folder_plots:str, 
-            color_dict:dict,
-            savefig:bool=False, 
-            window:int=72,
-            font:dict={'family': 'serif', 'size': 16},
-            )->None:
-    '''
-    ds: xarray dataset that contains modeled results for all runs and observation data
-        requires that the observations are indexed as 'Obs.'
-    '''
-    
-    #building a translation dict for legend very inflexible
-    translate = {f's{scale.replace(".", "")}': f'scale: {scale}' for scale in run_keys}
-    translate['Obs.'] = 'Observed'
-    
-    id_key = 'wflow_id'
-    
+def store_peak_info(ds, df_GaugeToPlot, id_key, window):
     # Store peak timing information in a dictionary
     peak_dict = {}
 
@@ -211,7 +195,6 @@ def plot_peaks_ts(ds:xr.Dataset,
 
         for run in ds_sub.runs.values:
             if run != 'Obs.':
-                # print('first loop', run)
                 sim = ds_sub.sel(runs=run).Q
 
                 peaks_obs, timing_errors = peak_timing_errors(obs, sim, window=window)
@@ -221,13 +204,54 @@ def plot_peaks_ts(ds:xr.Dataset,
                 # Expand the inner dictionary with the inner loop
                 peak_dict[id][run] = (peaks_sim, timing_errors)
 
-                # print(f'id: {id}, run: {run}, mean error: {np.mean(peak_dict[id][run][1])}')
-                
         peak_dict[id]['Obs.'] = (peaks_obs, timing_errors)
-        
+
+    return peak_dict
+
+def plot_peaks_ts(ds:xr.Dataset, 
+            run_keys:list, 
+            df_GaugeToPlot:pd.DataFrame, 
+            start:datetime, 
+            end:datetime, 
+            Folder_plots:str, 
+            color_dict:dict,
+            savefig:bool=False, 
+            window:int=72,
+            font:dict={'family': 'serif', 'size': 16},
+            translate:dict=None,
+            id_key:str='wflow_id'
+            )->None:
+    
+    '''
+    ds: xarray dataset that contains modeled results for all runs and observation data
+        requires that the observations are indexed as 'Obs.'
+    '''
+    
+    #building a translation dict for legend very inflexible
+    #TODO: make so if translate is not none, it will use that, otherwise it will use the run_keys
+    # alternative is use ds.runs.values
+    translate = {f'{run.replace(".", "")}': f'scale: {run}' for run in run_keys}
+    translate['Obs.'] = 'Observed'
+    
+    #TODO: stuck on wflow_id
+    id_key = 'wflow_id'
+    
+    # Store peak timing information in a dictionary
+    peak_dict = {}
+
+    for id in ds[id_key].values:
+        station_name = df_GaugeToPlot.loc[df_GaugeToPlot[id_key]==id, 'station_name'].values[0]
+        station_id = id
+
+        # select a station using the id grouping and the sub selection id (station_id)
+        ds_sub = ds.sel({id_key:station_id})
+
+        # get obs data
+        obs = ds_sub.sel(runs='Obs.').Q
+
+        peak_dict = store_peak_info(ds, df_GaugeToPlot, id_key, window)
         # print('peak_dict', peak_dict)
 
-        
         # try:
         fig = go.Figure()
         
@@ -252,7 +276,7 @@ def plot_peaks_ts(ds:xr.Dataset,
                     print(f'len(obs_filtered) {len(obs_filtered)} != len(sim_filtered) {len(sim_filtered)}')
                 
                 if run == 'Obs.':
-                    label = f'{translate[run]}'
+                    label = f'{run}'
                     
                     # fig add dots on the obs peaks using peak_dict[id][run][0]
                     obs_peaks = peak_dict[id][run][0]
@@ -317,7 +341,7 @@ def plot_peaks_ts(ds:xr.Dataset,
         
     return peak_dict
 
-# ------------ Compute peak timing errors for all runs (and plot analysis results) --------------
+#======================= Compute peak timing errors for all runs (and plot analysis results) --------------
 def peak_timing_for_runs(ds, df_GaugeToPlot, folder_plots, action, var, plotfig=False, savefig=False):
     for id in ds.wflow_id.values:
         station_name = df_GaugeToPlot.loc[df_GaugeToPlot['wflow_id']==id, 'station_name'].values[0]
@@ -424,7 +448,9 @@ def peak_timing_for_runs(ds, df_GaugeToPlot, folder_plots, action, var, plotfig=
             print('fail', station_name, station_id)
             print(e)
             pass
-            
+
+#TODO: move to file_methods
+#======================= search for model directories and configs ===================    
 def find_model_dirs(path, snippets):
     result = []
     for root, dirs, _ in os.walk(path):
@@ -450,44 +476,40 @@ def find_outputs(filtered_dirs, filetype):
             result.append(file)
     return result
 
-#%%
-
-working_folder=r'p:/11209265-grade2023/wflow/wflow_meuse_julia/wflow_meuse_20240122'
-sys.path.append(working_folder)
-Folder_plots = os.path.join(working_folder, '_plots')  # folder to save plots
-
-# create model runs
-#TODO: make this more general with a list of model paths
-run_keys = ['1.0', '0.7', '0.8', '0.9', '1.1', '1.2']
-
-snippets = ['run_default', 'run_scale_river']
-model_dirs = find_model_dirs(working_folder, snippets)
-toml_files = find_toml_files(model_dirs)
-output_files = find_outputs(model_dirs, 'csv')
-
-model_runs = {}
-
-# load model runs
-for run, result in zip(run_keys, output_files):
-    model_runs[run] = pd.read_csv(result, parse_dates=True, index_col=0)
-
-
-def create_combined_hourly_dataset(overwrite=False):
+# ======================= Create the FR-BE-NL combined dataset =======================
+def create_combined_hourly_dataset(run_keys, model_dirs, overwrite=False):
     fn_ds = os.path.join(working_folder, '_output/ds_obs_model_combined.nc')
     # ======================= Load stations/gauges to plot =======================
     # load csv that contains stations/gauges info that we want to plot
     fn_GaugeToPlot = r'/wflow_id_to_plot.csv'
+    
     df_GaugeToPlot = pd.read_csv(working_folder+fn_GaugeToPlot)
     
-    if os.path.exists(fn_ds):
+    if not overwrite and os.path.exists(fn_ds):
         print(f'obs and model runs already combined in {fn_ds}')
         print('overwrite is false')
         print(f'loading {fn_ds}')
+        
         ds = xr.open_dataset(fn_ds)
+        
         return ds, df_GaugeToPlot
     
     elif overwrite or not os.path.exists(fn_ds):                    
-
+        # ======================= Load model runs =======================
+        if overwrite:
+            print('overwriting the combined dataset...')
+        else:
+            print('combined dataset does not exist, creating...')
+        
+        #find the output files
+        output_files = find_outputs(model_dirs, 'csv')
+        
+        # load the model results into memory
+        model_runs = {}
+        # load model runs
+        for run, result in zip(run_keys, output_files):
+            model_runs[run] = pd.read_csv(result, parse_dates=True, index_col=0)
+        
         Folder_staticgeoms = os.path.join(model_dirs[0], 'staticgeoms')  # folder that contain staticgeoms
 
         # ======================= Get stations that are exist in the wflow model (not used in this script)=======================
@@ -563,35 +585,57 @@ def create_combined_hourly_dataset(overwrite=False):
         # fill in obs data
         #TODO: add in hourly obs data for Borgharen (wflow_id=16)
         for id in wflow_id_to_plot:
-            country = df_GaugeToPlot.loc[df_GaugeToPlot['wflow_id']==id,'country'].values[0]
-            if country=='France':
-                ds['Q'].loc[dict(runs='Obs.', wflow_id=id)] = obs_dict[f'{country}']['Q'].loc[dict(wflow_id=id, time=rng)].values
-            elif country=='Belgium':
-                ds['Q'].loc[dict(runs='Obs.', wflow_id=id)] = obs_dict[f'{country}']['Qobs_m3s'].loc[dict(catchments=id, time=rng)].values
-            #else: # country==Netherlands
-                # ! Problem: no hourly data at Borgharen?
-                #ds['Q'].loc[dict(runs='Obs.', wflow_id=id)] = obs_dict[f'{country}']['Qobs'].loc[dict(catchments=id, time=rng)].values
             
-
+            country = df_GaugeToPlot.loc[df_GaugeToPlot['wflow_id']==id,'country'].values[0]
+            
+            if country=='France':
+                # intersect the time ranges
+                time_intersection = np.intersect1d(obs_dict[f'{country}']['Q'].time.values, rng)
+                ds['Q'].loc[dict(runs='Obs.', wflow_id=id)] = obs_dict[f'{country}']['Q'].sel(dict(wflow_id=id, time=time_intersection)).values
+            
+            elif country=='Belgium':
+                # intersect the time ranges
+                time_intersection = np.intersect1d(obs_dict[f'{country}']['Qobs_m3s'].time.values, rng)
+                ds['Q'].loc[dict(runs='Obs.', wflow_id=id)] = obs_dict[f'{country}']['Qobs_m3s'].sel(dict(catchments=id, time=time_intersection)).values
+                    #else: # country==Netherlands
+                        # ! Problem: no hourly data at Borgharen?
+                        #ds['Q'].loc[dict(runs='Obs.', wflow_id=id)] = obs_dict[f'{country}']['Qobs'].loc[dict(catchments=id, time=rng)].values
+        
         # fill in modeled results
         for key, item in model_runs.items():
             for id in wflow_id_to_plot:
                 col_name = f'Qall_{id}'  # column name of this id in model results (from Qall)
-                ds['Q'].loc[dict(runs=key, wflow_id=id)] = item.loc[rng, col_name]
+                item_reindexed = item.reindex(rng)
+                ds['Q'].loc[dict(runs=key, wflow_id=id)] = item_reindexed.loc[:, col_name]
+        
         ds.to_netcdf(fn_ds)
         print(f'saved combined observations and model runs to\n{fn_ds}')
         return ds, df_GaugeToPlot
 
+#%%
+# ======================= Set up the working directory =======================
+working_folder=r'p:/11209265-grade2023/wflow/wflow_meuse_julia/wflow_meuse_20240122'
+sys.path.append(working_folder)
+Folder_plots = os.path.join(working_folder, '_plots')  # folder to save plots
 
-ds, df_GaugeToPlot = create_combined_hourly_dataset()
+# ======================= Define the runs and load model runs =======================
+#TODO: make this more general with a list of model paths
+run_keys = ['1.0', '0.7', '0.8', '0.9', '1.1', '1.2']
 
+snippets = ['run_default', 'run_scale_river']
+model_dirs = find_model_dirs(working_folder, snippets)
+toml_files = find_toml_files(model_dirs)  #will be useful when we can use the Wflowmodel to extract geoms and results
+
+# ======================= Create the FR-BE-NL combined dataset =======================  
+ds, df_GaugeToPlot = create_combined_hourly_dataset(run_keys, model_dirs, overwrite=True)
 
 #%%
+#TODO: automate the color list, make permanent for each working folder? 
 
-#make the color dictionary from a loop 
 color_list = ['#377eb8', '#ff7f00', '#4daf4a', '#f781bf', '#a65628', '#984ea3', '#999999'] #blue, orange, green,pink,brown,purple,grey
 
-run_keys.append('Obs.')
+run_keys = ds.runs.values
+
 color_dict = {f'{key}': color_list[i] for i, key in enumerate(run_keys)}
 
 # # ======================= Plot hydrograph =======================
