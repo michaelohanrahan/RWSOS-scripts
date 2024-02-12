@@ -71,7 +71,6 @@ def create_combined_hourly_dataset_FRBENL(working_folder:str,
                                           output:str, 
                                           toml_files:list, 
                                           overwrite:bool=False):
-    
     '''
     This function creates a combined dataset of hourly model runs and observations for France, Belgium and Netherlands.
     The dataset is saved as a netCDF file in the working_folder.
@@ -79,9 +78,18 @@ def create_combined_hourly_dataset_FRBENL(working_folder:str,
     Args:
     working_folder: str, path to the working folder containing all model runs
     run_keys: list, list of run keys (derived from model runs if not supplied)
+    model_dirs: list, list of directories containing the model runs
+    output: str, filename pattern to search for in the model output files
+    toml_files: list, list of TOML configuration files for the model runs
+    overwrite: bool, flag indicating whether to overwrite the existing combined dataset if it exists
     
-    
+    Returns:
+    ds: xarray.Dataset, combined dataset of model runs and observations
+    df_GaugeToPlot: pandas.DataFrame, dataframe containing information about stations/gauges to plot
     '''
+    
+    fn_ds = os.path.join(working_folder, '_output/ds_obs_model_combined.nc')
+
     
     fn_ds = os.path.join(working_folder, '_output/ds_obs_model_combined.nc')
     # ======================= Load stations/gauges to plot =======================
@@ -110,7 +118,10 @@ def create_combined_hourly_dataset_FRBENL(working_folder:str,
         os.makedirs(os.path.join(working_folder, '_output'), exist_ok=True)
     
         #find the output files
-        output_files = find_outputs(model_dirs, filename=output)
+        if output in ['csv', 'nc']:
+            output_files = find_outputs(model_dirs, filetype=output)
+        else:
+            output_files = find_outputs(model_dirs, filename=output)
         
         # try:
         #     if os.path.exists(os.path.join(working_folder, 'staticgeoms')):

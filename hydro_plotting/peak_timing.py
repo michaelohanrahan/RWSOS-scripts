@@ -6,18 +6,20 @@ import plotly.graph_objects as go
 from datetime import datetime
 # from hydromt_wflow import WflowModel
 from metrics.objective_fn import calculate_nse_and_log_nse
+# import traceback
 import matplotlib.pyplot as plt
+import datetime
 
 
 # ======================= Peak timing plotting =======================
 
-def plot_peaks_ts(ds:xr.Dataset, 
-            run_keys:list, 
+def plot_peaks_ts(ds:xr.Dataset,  
             df_GaugeToPlot:pd.DataFrame, 
             start:datetime, 
             end:datetime, 
             Folder_plots:str, 
             color_dict:dict,
+            run_keys:list=None,
             peak_dict:dict=None,
             savefig:bool=False,
             font:dict={'family': 'serif', 'size': 16},
@@ -29,6 +31,9 @@ def plot_peaks_ts(ds:xr.Dataset,
     ds: xarray dataset that contains modeled results for all runs and observation data
         requires that the observations are indexed as 'Obs.'
     '''
+    
+    if run_keys == None:
+        run_keys = ds.runs.values
     
     for station_id in ds[id_key].values:
         try:
@@ -135,6 +140,7 @@ def plot_peaks_ts(ds:xr.Dataset,
             print('\nfail peak plots, station:', station_id, '\n')
             print(e)
             pass
+        
     return None
 
 
@@ -153,10 +159,10 @@ def peak_timing_for_runs(ds:xr.Dataset,
     '''
     
     for station_id in ds.wflow_id.values:
+        # try:
+        station_name = df_GaugeToPlot.loc[df_GaugeToPlot['wflow_id']==station_id, 'station_name'].values[0]
+        
         try:
-            station_name = df_GaugeToPlot.loc[df_GaugeToPlot['wflow_id']==station_id, 'station_name'].values[0]
-            
-            # try:
             # select a station
             ds_sub = ds.sel(wflow_id=station_id)
 
@@ -175,11 +181,11 @@ def peak_timing_for_runs(ds:xr.Dataset,
                 ax1 = plt.subplot2grid((2, 2), (0, 0))  # Scatter plot spans the first row
                 
                 markers = ['o', 's', '^', 'D', 'x', '*']
-                
-                for (run, data), marker in zip(peak_dict.items(), markers):
-                    peaks = data[run]['peaks']
-                    timing_errors = data[run]['timing_errors']
-                    qobs = obs[data[run]['Obs.'][peaks]]
+                peak_dict_sid = peak_dict[station_id]
+                for (run, data), marker in zip(peak_dict_sid.items(), markers):
+                    peaks = data['peaks']
+                    timing_errors = data['timing_errors']
+                    # qobs = obs[data['Obs.'][peaks]]
                     ax1.scatter(obs[peaks], timing_errors, marker=marker, label=run)
                 
                 ax1.legend()
@@ -196,8 +202,8 @@ def peak_timing_for_runs(ds:xr.Dataset,
                 # bars = ax2.bar(keys, mean_peak_timings, color=colors)
                 
                 ax2 = plt.subplot2grid((2, 2), (1, 0))  # First plot in second row
-                keys = list(peak_dict.keys())
-                data = [peak_dict[key]['timing_errors'] for key in keys]  # Use the raw data for the boxplot
+                keys = list(peak_dict_sid.keys())
+                data = [peak_dict_sid[key]['timing_errors'] for key in keys]  # Use the raw data for the boxplot
                 colors = ['skyblue' if key != 's10' else 'grey' for key in keys]
 
                 # Create a boxplot
@@ -226,7 +232,7 @@ def peak_timing_for_runs(ds:xr.Dataset,
 
                 # Mean absolute percentage peak error bar plot
                 ax3 = plt.subplot2grid((2, 2), (1, 1))  # Second plot in second row
-                peak_mapes = [peak_dict[key]['peak_mape'] for key in keys]
+                peak_mapes = [peak_dict_sid[key]['peak_mape'] for key in keys]
                 bars = ax3.bar(keys, peak_mapes, color=colors)  # add yerr parameter
 
                 # Add the data values on top of the bars
@@ -240,7 +246,7 @@ def peak_timing_for_runs(ds:xr.Dataset,
                 
                 # ax3.set_ylim(0, max(peak_mapes) + 5)
                 ax3.set_ylim(0, 45)
-                ax3.set_xticklabels(list(peak_dict.keys()), rotation=15)
+                ax3.set_xticklabels(list(peak_dict_sid.keys()), rotation=15)
                 ax3.set_xlabel('Run')
                 ax3.set_ylabel('MAPE (100%)')
                 ax3.set_title('Mean Absolute Percentage Peak error (MAPE, Instaneous Discharge)')
@@ -248,6 +254,10 @@ def peak_timing_for_runs(ds:xr.Dataset,
                 # Adjust layout to prevent overlap
                 plt.tight_layout()
                 plt.show()
+                
+                #define start and end as the first and last timestamp in the ds
+                start = ds.time.values[-1].astype(datetime)
+                end = ds.time.values[0].astype(datetime)
                 
                 if savefig:
                     timeseries_folder = os.path.join(folder_plots, 'Event_Timing_Metrics')
@@ -261,8 +271,8 @@ def peak_timing_for_runs(ds:xr.Dataset,
             else:
                 pass
         
+            
         except Exception as e:
-            print('fail', station_name, station_id)
-            print(e)
-            pass
+            print(f'An error occurred for {station_name} (id: {station_id}): {str(e)}')
+            # traceback.print_exc()
 
