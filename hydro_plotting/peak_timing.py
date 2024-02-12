@@ -256,8 +256,11 @@ def peak_timing_for_runs(ds:xr.Dataset,
                 plt.show()
                 
                 #define start and end as the first and last timestamp in the ds
-                start = ds.time.values[-1].astype(datetime)
-                end = ds.time.values[0].astype(datetime)
+                start = pd.to_datetime(ds.time.max().values.astype(datetime))
+                end = pd.to_datetime(ds.time.min().values.astype(datetime))
+                
+                print(start)
+                print(end)
                 
                 if savefig:
                     timeseries_folder = os.path.join(folder_plots, 'Event_Timing_Metrics')

@@ -150,7 +150,7 @@ print(f'Loaded dataset with dimensions: {ds.dims}')
 
 color_list = ['#377eb8', '#ff7f00', '#4daf4a', '#f781bf', '#a65628', '#984ea3', '#999999'] #blue, orange, green,pink,brown,purple,grey
 
-# run_keys = ds.runs.values
+run_keys = ds.runs.values
 
 color_dict = {f'{key}': color_list[i] for i, key in enumerate(run_keys)}
 
