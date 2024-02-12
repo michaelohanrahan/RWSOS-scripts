@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import sys
 import os
 # from hydro_plotting import hydro_signatures
-from file_methods.postprocess import find_model_dirs, find_toml_files,create_combined_hourly_dataset_FRBENL
+from file_methods.postprocess import find_model_dirs, find_toml_files, find_outputs, create_combined_hourly_dataset_FRBENL
 # from metrics.peak_metrics import peak_timing_errors
 from metrics.run_peak_metrics import store_peak_info
 from hydro_plotting.peak_timing import plot_peaks_ts, peak_timing_for_runs
@@ -150,7 +150,7 @@ print(f'Loaded dataset with dimensions: {ds.dims}')
 
 color_list = ['#377eb8', '#ff7f00', '#4daf4a', '#f781bf', '#a65628', '#984ea3', '#999999'] #blue, orange, green,pink,brown,purple,grey
 
-run_keys = ds.runs.values
+# run_keys = ds.runs.values
 
 color_dict = {f'{key}': color_list[i] for i, key in enumerate(run_keys)}
 

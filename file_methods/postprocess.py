@@ -52,8 +52,8 @@ def find_outputs(filtered_dirs, filetype=None, filename=None):
             for file in glob.glob(os.path.join(directory, '**', filename), recursive=True):
                 print(f"Found file: {file}")  # Debug print
                 result.append(file)
-                break
-            break   
+                # break
+            # break   
     
         elif filetype is not None:
             print(f"Searching for filetype: {filetype}")  # Debug print
@@ -123,6 +123,8 @@ def create_combined_hourly_dataset_FRBENL(working_folder:str,
         else:
             output_files = find_outputs(model_dirs, filename=output)
         
+        print(output_files)
+        
         # try:
         #     if os.path.exists(os.path.join(working_folder, 'staticgeoms')):
         #         folder_staticgeoms = os.path.join(working_folder, 'staticgeoms')
@@ -161,6 +163,8 @@ def create_combined_hourly_dataset_FRBENL(working_folder:str,
         # ====================== load the model results into memory
         
         print('\nloading model runs...\n')
+        
+        print(output_files)
         
         model_runs = {}
         
@@ -254,7 +258,6 @@ def create_combined_hourly_dataset_FRBENL(working_folder:str,
                 # intersect the time ranges
                 time_intersection = np.intersect1d(obs_dict[f'{country}']['Qobs_m3s'].time.values, rng)
                 ds['Q'].loc[{'runs':'Obs.', 'wflow_id':wflow_id}] = obs_dict[f'{country}']['Qobs_m3s'].sel({'catchments':wflow_id, 'time':time_intersection}).values
-                
                 
             else:
                 time_intersection = np.intersect1d(obs_dict[f'{country}']['Q'].time.values, rng)
