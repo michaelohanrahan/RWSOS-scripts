@@ -174,7 +174,7 @@ def create_combined_hourly_dataset_FRBENL(working_folder:str,
         # load observation/measurement data from France, Belgium and Netherlands in a dictionary
         fn_France = R'p:\11209265-grade2023\wflow\wflow_meuse_julia\measurements\FR-Hydro-hourly-2005_2022.nc'
         fn_Belgium = R'p:\11209265-grade2023\wflow\wflow_meuse_julia\measurements\qobs_hourly_belgian_catch.nc'
-        fn_Netherlands = R'p:\11209265-grade2023\wflow\wflow_meuse_julia\measurements\qobs_xr.nc'
+        fn_Netherlands = R'p:\11209265-grade2023\wflow\wflow_meuse_julia\measurements\rwsinfo_hourly.nc'
         
         obs_dict = {}
         
@@ -235,7 +235,6 @@ def create_combined_hourly_dataset_FRBENL(working_folder:str,
         ds = ds * np.nan
 
         # fill in obs data
-        #TODO: add in hourly obs data for Borgharen (wflow_id=16)
         for wflow_id in wflow_id_to_plot:
             
             country = df_GaugeToPlot.loc[df_GaugeToPlot['wflow_id']==wflow_id,'country'].values[0]
@@ -255,9 +254,11 @@ def create_combined_hourly_dataset_FRBENL(working_folder:str,
                 # intersect the time ranges
                 time_intersection = np.intersect1d(obs_dict[f'{country}']['Qobs_m3s'].time.values, rng)
                 ds['Q'].loc[{'runs':'Obs.', 'wflow_id':wflow_id}] = obs_dict[f'{country}']['Qobs_m3s'].sel({'catchments':wflow_id, 'time':time_intersection}).values
-                    #else: # country==Netherlands
-                        # ! Problem: no hourly data at Borgharen?
-                        #ds['Q'].loc[dict(runs='Obs.', wflow_id=wflow_id)] = obs_dict[f'{country}']['Qobs'].loc[dict(catchments=wflow_id, time=rng)].values
+                
+                
+            else:
+                time_intersection = np.intersect1d(obs_dict[f'{country}']['Q'].time.values, rng)
+                ds['Q'].loc[{'runs':'Obs.', 'wflow_id':wflow_id}] = obs_dict[f'{country}']['Q'].sel({'wflow_id':wflow_id, 'time':time_intersection}).values
         
         print('\nmodel_runs:\n', model_runs)
         print('\nmodel_runs.keys():\n', model_runs.keys())
