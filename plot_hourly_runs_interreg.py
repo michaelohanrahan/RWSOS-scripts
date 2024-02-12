@@ -168,14 +168,14 @@ Folder_plots = os.path.join(working_folder, '_plots')  # folder to save plots
 
 print(f'len ds time: {len(ds.time)}')
 
-# peak_timing_info = plot_peaks_ts(ds, 
-#                                  run_keys,
-#                                  df_gaugetoplot,
-#                                  start, end,
-#                                  Folder_plots,
-#                                  color_dict,
-#                                  peak_dict=peak_dict,
-#                                  savefig=True)
+peak_timing_info = plot_peaks_ts(ds, 
+                                 df_gaugetoplot,
+                                 start, end,
+                                 Folder_plots,
+                                 color_dict,
+                                 peak_dict=peak_dict,
+                                 savefig=True)
+
 
 
 

@@ -8,7 +8,7 @@ from datetime import datetime
 from metrics.objective_fn import calculate_nse_and_log_nse
 # import traceback
 import matplotlib.pyplot as plt
-import datetime
+from datetime import datetime
 
 
 # ======================= Peak timing plotting =======================
