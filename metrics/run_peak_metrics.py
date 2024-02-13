@@ -44,6 +44,7 @@ def store_peak_info(ds, df_GaugeToPlot, id_key, window):
 
         # get obs data
         obs = ds_sub.sel(runs='Obs.').Q
+        obs = obs.ffill('time')
 
         peak_dict[id] = {}
 
