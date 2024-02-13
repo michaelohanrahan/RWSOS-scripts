@@ -113,38 +113,38 @@ def peak_timing_errors(obs: DataArray,
 
 
 
-if __name__ == '__main__':
+# if __name__ == '__main__':
     
-    # set working folder
-    working_folder=r'p:/11209265-grade2023/wflow/wflow_meuse_julia/wflow_meuse_202401'
-    sys.path.append(working_folder)
+#     # set working folder
+#     working_folder=r'p:/11209265-grade2023/wflow/wflow_meuse_julia/wflow_meuse_202401'
+#     sys.path.append(working_folder)
     
-    # load example data: dataset that contains both obs. and model runs results
-    fn_ds = r'/_output/ds_obs_model_combined.nc'
-    ds = xr.open_dataset(working_folder+fn_ds)
+#     # load example data: dataset that contains both obs. and model runs results
+#     fn_ds = r'/_output/ds_obs_model_combined.nc'
+#     ds = xr.open_dataset(working_folder+fn_ds)
     
-    # get the obs for Chooz (wflow_id=4)
-    obs = ds.sel(runs='Obs.', wflow_id=4).Q
-    print(type(obs))
+#     # get the obs for Chooz (wflow_id=4)
+#     obs = ds.sel(runs='Obs.', wflow_id=4).Q
+#     print(type(obs))
     
-    # get the model run s07 results for Chooz (wflow_id=4)
-    sim = ds.sel(runs='s07', wflow_id=4).Q
-    print(type(sim))
+#     # get the model run s07 results for Chooz (wflow_id=4)
+#     sim = ds.sel(runs='s07', wflow_id=4).Q
+#     print(type(sim))
     
-    # compute peak_timing_errors
-    peaks, timing_errors = peak_timing_errors(obs, sim, window=72)
+#     # compute peak_timing_errors
+#     peaks, timing_errors = peak_timing_errors(obs, sim, window=72)
     
     
-    # some example post analysis of the peak timing errors results:
-    # 1) mean peak timing: mean absolute time difference across all peaks
-    mean_peak_timing = np.mean(np.abs(timing_errors)) if len(timing_errors) > 0 else np.nan
+#     # some example post analysis of the peak timing errors results:
+#     # 1) mean peak timing: mean absolute time difference across all peaks
+#     mean_peak_timing = np.mean(np.abs(timing_errors)) if len(timing_errors) > 0 else np.nan
     
-    # 2) mean absolute percentage peak error
-    obs_Q = obs[peaks].values
-    sim_Q = sim[peaks].values
-    peak_mape = np.sum(np.abs((sim_Q - obs_Q) / obs_Q)) / peaks.size * 100
+#     # 2) mean absolute percentage peak error
+#     obs_Q = obs[peaks].values
+#     sim_Q = sim[peaks].values
+#     peak_mape = np.sum(np.abs((sim_Q - obs_Q) / obs_Q)) / peaks.size * 100
     
-    # 3) scatter plot of timing_errors vs. obs
-    plt.scatter(obs[peaks], timing_errors)
-    plt.xlabel('obs Q, m3/s')
-    plt.ylabel('timing error, h')
+#     # 3) scatter plot of timing_errors vs. obs
+#     plt.scatter(obs[peaks], timing_errors)
+#     plt.xlabel('obs Q, m3/s')
+#     plt.ylabel('timing error, h')

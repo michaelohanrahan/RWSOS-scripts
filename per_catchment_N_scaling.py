@@ -83,11 +83,11 @@ def build_dependency_dict(wflow_id:list):
         dependency_dict[i] = []
 
     dependency_dict[3] = [101]
-    dependency_dict[4] = [*dependency_dict[3], 201, 5, 6]
-    dependency_dict[1401] = [13,9,703,701,*dependency_dict[4], 801]
+    dependency_dict[4] = [3, *dependency_dict[3], 201, 5, 6]
+    dependency_dict[1401] = [13,9,703,701,*dependency_dict[4], 4, 801]
     dependency_dict[1201] = [12,11,10]
-    dependency_dict[1402] = [*dependency_dict[1401], *dependency_dict[1201]]
-    dependency_dict[16] = [15, *dependency_dict[1402]]
+    dependency_dict[1402] = [*dependency_dict[1401], 1401, *dependency_dict[1201], 1201]
+    dependency_dict[16] = [15, *dependency_dict[1402], 1402]
     
     return dependency_dict
 
@@ -151,14 +151,22 @@ def process_gauges(models:list,
     return match_dict, models, tomls, wflow_id
 
 def plot_dep_catchments(dep_id:list, gdf_sb, gdf_gg, basin, ax):
+    artists = []  # list to store the artists
 
-    basin.plot(ax=ax, color='lightgrey')
+    artist = basin.plot(ax=ax, color='lightgrey')
+    artists.append(artist)
 
-    gdf_sb.plot(ax=ax, color='none', edgecolor='black')
-    gdf_sb[gdf_sb.index.isin(dep_id)].plot(ax=ax, color='green', edgecolor='black')
+    artist = gdf_sb.plot(ax=ax, color='none', edgecolor='black')
+    artists.append(artist)
+    artist = gdf_sb[gdf_sb.index.isin(dep_id)].plot(ax=ax, color='green', edgecolor='black')
+    artists.append(artist)
 
-    gdf_gg.plot(ax=ax, color='red')
-    gdf_gg[gdf_gg.index.isin(dep_id)].plot(ax=ax, color='blue')
+    artist = gdf_gg.plot(ax=ax, color='red')
+    artists.append(artist)
+    artist = gdf_gg[gdf_gg.index.isin(dep_id)].plot(ax=ax, color='blue')
+    artists.append(artist)
+
+    return artists  # return the list of artists
 
 #%%
 
@@ -209,3 +217,67 @@ fig, ax = plt.subplots(figsize=(10,10))
 plot_dep_catchments(wflow_id, gdf_sb, gdf_gg, basin, ax)
 
 
+#%%
+from rasterio.features import geometry_mask
+values={k:1 for k in wflow_id}
+def mask_and_write(gdf_sb:gpd.GeoDataFrame, 
+                   process_now:list, 
+                   values:dict):
+    #maybe borrow masking code from the
+     
+    
+
+#%%
+import numpy as np
+import matplotlib.animation as animation
+#function takes dependency dict and wflow_id
+
+
+
+def dependency_solve(dependency_dict, 
+                     gdf_sb, 
+                     gdf_gg, 
+                     basin, 
+                     working_dir,
+                     end_key):
+    done = set()
+    ax_list = []
+    for i in range(1, 15):
+        #process now is cleared with each iteration
+        process_now = []
+        
+        #TODO: add the missing dependencies so that the next catchments are enabled
+        
+        for key, dep_list in dependency_dict.items():
+            
+            # l3vel 1
+            if len(dep_list) < 1 and not any(k in done for k in [key]):
+                process_now.append(key)
+            
+            # for each dep list check if it is satisfied by the done list
+            elif all(item in done for item in dep_list) and key not in done:
+                process_now.append(key)
+            else:
+                None
+        
+        # print('unmasked', process_now)
+        # print(f'processing, iteration {i} :', process_now)
+        
+        fig, ax = plt.subplots(figsize=(10,9))
+        artists = plot_dep_catchments(process_now, gdf_sb, gdf_gg, basin, ax)
+        ax_list.append(artists)
+        # print('processed_now', process_now)
+            
+        done.update(process_now) 
+        
+        print('iteration level:', i, '\n', process_now)
+        
+        if end_key in done:
+            break
+    print('done after iteration:', i)
+    # ani = animation.ArtistAnimation(fig, ax_list, interval=1000, blit=True)
+    # ani.save(os.path.join(working_dir, 'animation.gif'), writer='gif', fps=1)
+
+dependency_solve(dependency_dict, gdf_sb, gdf_gg, basin, working_dir, 16)
+    
+#%%

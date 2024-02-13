@@ -131,7 +131,6 @@ snippets = ['run_scale']
 model_dirs = find_model_dirs(working_folder, snippets)
 toml_files = find_toml_files(model_dirs)  #will be useful when we can use the Wflowmodel to extract geoms and results
 
-#TODO: make this more general with a list of model paths
 run_keys = [run.split('\\')[-1].split('_')[-1] for run in model_dirs]
 
 # ======================= Create the FR-BE-NL combined dataset =======================  

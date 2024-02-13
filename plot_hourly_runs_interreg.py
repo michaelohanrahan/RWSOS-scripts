@@ -140,7 +140,7 @@ ds, df_gaugetoplot = create_combined_hourly_dataset_FRBENL(working_folder,
                                                            model_dirs, 
                                                            output='output.csv',
                                                            toml_files= toml_files, 
-                                                           overwrite=False)
+                                                           overwrite=True)
 
 print(f'Loaded dataset with dimensions: {ds.dims}')
 

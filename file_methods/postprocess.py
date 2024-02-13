@@ -8,6 +8,16 @@ from hydromt_wflow import WflowModel
 
 #======================= search for model directories and configs ===================    
 def find_model_dirs(path, snippets):
+    """
+    Find directories that contain the specified snippets in the given path.
+
+    Args:
+        path (str): The path to search for directories.
+        snippets (list): A list of snippets to search for in directory names.
+
+    Returns:
+        list: A list of directory paths that contain the specified snippets.
+    """
     result = []
     for root, dirs, _ in os.walk(path):
         for directory in dirs:
@@ -16,7 +26,16 @@ def find_model_dirs(path, snippets):
     return result
 
 def find_toml_files(filtered_dirs):
-    # Find .toml files in filtered directories
+    """
+    Find .toml files in the given directories.
+
+    Args:
+        filtered_dirs (list): A list of directories to search for (usually from find_model_dirs function).toml files.
+
+    Returns:
+        list: A list of paths to the found .toml files.
+    """
+  
     toml_files = []
     for directory in filtered_dirs:
         for file in glob.glob(os.path.join(directory, '*.toml')):
@@ -24,20 +43,46 @@ def find_toml_files(filtered_dirs):
 
     return toml_files
 
-# def find_outputs(filtered_dirs, filetype=None, filename=None):
-#     # Find the output files in the filtered directories
-#     result = []
-#     for directory in filtered_dirs:
-#         if filename is not None:
-#             # Search for the exact filename in the directory and its subdirectories
-#             for file in glob.glob(os.path.join(directory, '**', filename), recursive=True):
-#                 result.append(file)
-                
-#         elif filetype is not None:
-#             # Search for any file with the given extension in the directory and its subdirectories
-#             for file in glob.glob(os.path.join(directory, '**', '*.' + filetype), recursive=True):
-#                 result.append(file)
-#     return result
+
+def find_staticgeoms(working_dir:str=None, 
+                     model_snippet:str =None, 
+                     models:list=None)->list:
+    """
+    Find the staticgeoms directory in the working directory.
+    
+    Parameters:
+    working_dir (str): The path to the working directory.
+    model_snippet (str, optional): A snippet to filter model directories. Defaults to 'fl1d'.
+    
+    Returns:
+    list: A list of staticgeoms directories associated with the given working directory.
+    """
+    
+    
+    
+    if working_dir and models is None:
+        main_folder_sg = os.path.join(working_dir, 'staticgeoms')
+        if os.path.exists(main_folder_sg):
+            print('Using staticgeoms from main folder')
+            return main_folder_sg
+        else:
+            print('No staticgeoms found in main folder, try model subfolders')
+            return None
+    
+    elif models is None and model_snippet is not None:
+        models = find_model_dirs(working_dir, model_snippet)
+        staticgeoms_dir = [os.path.join(model, 'staticgeoms') for model in models]
+        staticgeoms_dir = [dir for dir in staticgeoms_dir if os.path.exists(dir)]
+        print('staticgeoms_dir(s): ', staticgeoms_dir)
+        return staticgeoms_dir
+    
+    elif models is not None:
+        staticgeoms_dir = [os.path.join(model, 'staticgeoms') for model in models]
+        staticgeoms_dir = [dir for dir in staticgeoms_dir if os.path.exists(dir)]
+        print('staticgeoms_dir(s): ', staticgeoms_dir)
+        return staticgeoms_dir
+    
+#======================= search for model outputs ===================
 
 def find_outputs(filtered_dirs, filetype=None, filename=None):
     # Find the output files in the filtered directories
@@ -70,7 +115,8 @@ def create_combined_hourly_dataset_FRBENL(working_folder:str,
                                           model_dirs:list, 
                                           output:str, 
                                           toml_files:list, 
-                                          overwrite:bool=False):
+                                          overwrite:bool=False,
+                                          model_snippet:str=None):
     '''
     This function creates a combined dataset of hourly model runs and observations for France, Belgium and Netherlands.
     The dataset is saved as a netCDF file in the working_folder.
@@ -92,11 +138,12 @@ def create_combined_hourly_dataset_FRBENL(working_folder:str,
 
     
     fn_ds = os.path.join(working_folder, '_output/ds_obs_model_combined.nc')
+    
     # ======================= Load stations/gauges to plot =======================
     # load csv that contains stations/gauges info that we want to plot
-    fn_GaugeToPlot = r'/wflow_id_to_plot.csv'
+    fn_GaugeToPlot = 'wflow_id_to_plot.csv'
     
-    df_GaugeToPlot = pd.read_csv(working_folder+fn_GaugeToPlot)
+    df_GaugeToPlot = pd.read_csv(os.path.join(working_folder, fn_GaugeToPlot))
     
     if not overwrite and os.path.exists(fn_ds):
         print(f'obs and model runs already combined in {fn_ds}')
@@ -135,8 +182,11 @@ def create_combined_hourly_dataset_FRBENL(working_folder:str,
         #     return None
         folder_staticgeoms = r"P:\11209265-grade2023\wflow\wflow_meuse_julia\wflow_meuse_202303\staticgeoms"
         
+        # folder_staticgeoms = find_staticgeoms(working_dir=working_folder)
+        
         #TODO: should be do-able with hydromt and staticgeoms
         gauges_maps = []
+        
         for file in os.listdir(folder_staticgeoms):
             if 'gauges' in file:
                 gauges_maps.append(os.path.splitext(file)[0])
@@ -158,7 +208,7 @@ def create_combined_hourly_dataset_FRBENL(working_folder:str,
             else:
                 print(f'{gauge_map} : no wflow_id')
         
-        # print('\nmod_stations:\n', mod_stations)
+        print('\nmod_stations:\n', mod_stations)
         
         # ====================== load the model results into memory
         

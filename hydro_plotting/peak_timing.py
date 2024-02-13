@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 from datetime import datetime
 # from hydromt_wflow import WflowModel
 from metrics.objective_fn import calculate_nse_and_log_nse
-# import traceback
+import traceback
 import matplotlib.pyplot as plt
 from datetime import datetime
 
@@ -51,6 +51,7 @@ def plot_peaks_ts(ds:xr.Dataset,
                 # print('\nshape ds.sel(time=slice(start, end), runs=run, wflow_id=id).dropna(dim=time)\n', ds.sel(time=slice(start, end), runs=run, wflow_id=id).dropna(dim='time'))
                 
                 obs = ds.sel(time=slice(start, end), runs='Obs.', wflow_id=station_id)
+                obs = obs.ffill('time') #observations are prone to nans
                 sim = ds.sel(time=slice(start, end), runs=run, wflow_id=station_id)
                 
                 # print('len obs, len sim', len(obs.Q), len(sim.Q))
@@ -61,8 +62,6 @@ def plot_peaks_ts(ds:xr.Dataset,
                 obs_filtered = obs.Q[mask]
                 sim_filtered = sim.Q[mask]
                 
-                # print('len(obs_filtered)', len(obs_filtered))
-                # print('len(sim_filtered)', len(sim_filtered))
                 
                 if len(obs_filtered) == len(sim_filtered):
                     nse, nse_log = calculate_nse_and_log_nse(obs_filtered, sim_filtered)
@@ -78,6 +77,7 @@ def plot_peaks_ts(ds:xr.Dataset,
                     
                     obs_peaks = peak_dict[station_id][run]['peaks']
                     
+                    print(obs_peaks)
                     
                     fig.add_trace(go.Scatter(
                         x=obs.time.values,
@@ -87,6 +87,8 @@ def plot_peaks_ts(ds:xr.Dataset,
                         line=dict(color=color_dict[str(run)])
                     ))
                     
+                    x=obs.time.isel(time=obs_peaks).values
+                    print(x)
                     fig.add_trace(go.Scatter(
                         x=obs.time.isel(time=obs_peaks).values,
                         y=obs.Q.isel(time=obs_peaks).values,
@@ -139,7 +141,8 @@ def plot_peaks_ts(ds:xr.Dataset,
         except Exception as e:
             print('\nfail peak plots, station:', station_id, '\n')
             print(e)
-            pass
+            traceback.print_exc()
+            
         
     return None
 
@@ -183,23 +186,22 @@ def peak_timing_for_runs(ds:xr.Dataset,
                 markers = ['o', 's', '^', 'D', 'x', '*']
                 peak_dict_sid = peak_dict[station_id]
                 for (run, data), marker in zip(peak_dict_sid.items(), markers):
-                    peaks = data['peaks']
-                    timing_errors = data['timing_errors']
-                    # qobs = obs[data['Obs.'][peaks]]
-                    ax1.scatter(obs[peaks], timing_errors, marker=marker, label=run)
+                    if run != 'Obs.':
+                        peaks = data['peaks']
+                        timing_errors = data['timing_errors']
+                        # qobs = obs[data['Obs.'][peaks]]
+                        # Assuming `data` is the variable you want to plot
+                        # if np.all(np.isfinite(data)):
+                            # Plot the data
+                        ax1.scatter(obs[peaks], timing_errors, marker=marker, label=run)
+                        # else:
+                        #     print(f"Data contains non-finite values: {data}")
                 
                 ax1.legend()
                 ax1.set_xlabel('Qobs (m\u00b3 s\u207b\u00b9)')
                 ax1.axhline(0, color='black', alpha=0.5, linestyle='--')
                 ax1.set_ylabel('Timing Error (h)')
                 ax1.set_title(f'Meuse at {station_name} (id: {station_id}) - Scatter plot of Qobs vs timing error')
-
-                # Mean peak timing bar plot
-                # ax2 = plt.subplot2grid((2, 2), (1, 0))  # First plot in second row
-                # keys = list(peak_dict.keys())
-                # mean_peak_timings = [peak_dict[key]['mean_peak_timing'] for key in keys]
-                # colors = ['skyblue' if key != 's10' else 'grey' for key in keys]
-                # bars = ax2.bar(keys, mean_peak_timings, color=colors)
                 
                 ax2 = plt.subplot2grid((2, 2), (1, 0))  # First plot in second row
                 keys = list(peak_dict_sid.keys())
@@ -240,12 +242,12 @@ def peak_timing_for_runs(ds:xr.Dataset,
                     yval = bar.get_height()
                     ax3.text(bar.get_x() + bar.get_width()/2, 
                             yval + 1,  # Add the error and a small offset from the top of the bar
-                            round(yval, 1), 
+                            round(yval, 2), 
                             ha='center', 
                             va='bottom')
                 
                 # ax3.set_ylim(0, max(peak_mapes) + 5)
-                ax3.set_ylim(0, 45)
+                # ax3.set_ylim(0, 48)
                 ax3.set_xticklabels(list(peak_dict_sid.keys()), rotation=15)
                 ax3.set_xlabel('Run')
                 ax3.set_ylabel('MAPE (100%)')
@@ -253,14 +255,12 @@ def peak_timing_for_runs(ds:xr.Dataset,
 
                 # Adjust layout to prevent overlap
                 plt.tight_layout()
-                plt.show()
+                # plt.show()
                 
                 #define start and end as the first and last timestamp in the ds
-                start = pd.to_datetime(ds.time.max().values.astype(datetime))
-                end = pd.to_datetime(ds.time.min().values.astype(datetime))
+                start = pd.to_datetime(ds.time.min().values.astype(datetime))
+                end = pd.to_datetime(ds.time.max().values.astype(datetime))
                 
-                print(start)
-                print(end)
                 
                 if savefig:
                     timeseries_folder = os.path.join(folder_plots, 'Event_Timing_Metrics')
@@ -270,12 +270,11 @@ def peak_timing_for_runs(ds:xr.Dataset,
 
             if savefig == True and plotfig == False:
                 print('plotfig is False, no figure saved.')
-
             else:
-                pass
+                None
         
             
         except Exception as e:
             print(f'An error occurred for {station_name} (id: {station_id}): {str(e)}')
-            # traceback.print_exc()
+            traceback.print_exc()
 
