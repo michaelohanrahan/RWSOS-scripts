@@ -1,5 +1,6 @@
 from metrics.peak_metrics import peak_timing_errors
 import numpy as np
+import pandas as pd
 
 # def store_peak_info(ds, df_GaugeToPlot, id_key, window):
 #     # Store peak timing information in a dictionary
@@ -59,14 +60,22 @@ def store_peak_info(ds, df_GaugeToPlot, id_key, window):
 
                 peaks, timing_errors = peak_timing_errors(obs, sim, window=window)
 
-                print(f'run, peaks, timing_errors: {run}, \n {peaks}, \n  {timing_errors}')
+                # print(f'run, peaks, timing_errors: {run}, \n {peaks}, \n  {timing_errors}')
                 # Check if peaks is empty
                 if len(peaks) > 0 and not np.isnan(peaks).all() and not np.isnan(timing_errors).all():
                     
-                    peaks_sim = (peaks + timing_errors).astype(int)
+                    # Convert timing_errors to timedelta (assuming timing_errors are in hours)
+                    timing_errors_timedelta = pd.to_timedelta(timing_errors, unit='h')
+
+                    # Add timedelta to datetime
+                    peaks_sim = peaks + timing_errors_timedelta
+
                     mean_peak_timing = np.mean(np.abs(timing_errors))
-                    obs_Q = obs[peaks].values
-                    sim_Q = sim[peaks_sim].values
+                    
+                    peaks_index = pd.DatetimeIndex(peaks)
+                    obs_Q = obs.sel(time=peaks_index).values
+                    sim_Q = sim.sel(time=peaks_index).values
+                    
                     peak_mape = np.sum(np.abs((sim_Q - obs_Q) / obs_Q)) / peaks.size * 100
                 
                 else:

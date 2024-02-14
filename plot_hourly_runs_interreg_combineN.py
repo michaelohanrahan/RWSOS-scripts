@@ -92,69 +92,7 @@ peak_timing_info = plot_peaks_ts(ds,
                                  savefig=True)
 
 
-
-
-# whole TS
-# plot_ts(ds, scales, df_GaugeToPlot, start, end, Folder_plots, peak_time_lag=False, savefig=False)
-
-
-# plot_ts(ds, 
-#         run_keys, 
-#         df_GaugeToPlot, 
-#         start, end, 
-#         Folder_plots, 
-#         action='scaling',
-#         var='riverN',
-#         peak_time_lag=False, 
-#         savefig=True,
-#         color_dict=color_dict, 
-#         font=font) 
-
-# # # peak event Jan-Feb
-# # plot_ts(ds, df_GaugeToPlot, '2015-01-01', '2015-02-14', Folder_plots, peak_time_lag=True, savefig=False)
-# # # peak event Feb-Mar
-# # plot_ts(ds, df_GaugeToPlot, '2015-02-15', '2015-03-31', Folder_plots, peak_time_lag=True, savefig=False)
-# # # peak event Apr-May
-# # plot_ts(ds, df_GaugeToPlot, '2015-04-01', '2015-05-14', Folder_plots, peak_time_lag=True, savefig=False)
-# # # peak event Sep-Oct
-# # plot_ts(ds, df_GaugeToPlot, '2015-09-01', '2015-10-14', Folder_plots, peak_time_lag=True, savefig=False)
-# # # peak event Nov-Dec
-# # plot_ts(ds, df_GaugeToPlot, '2015-11-15', '2015-12-31', Folder_plots, peak_time_lag=True, savefig=False)
-
-
-# # ======================= Plot signature =======================
-# colors = [
-#     '#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99','#e31a1c',
-#     '#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928']
-# plot_colors = colors[:len(model_runs)]
-# translate = {
-#         's07': 'scale: 0.7',
-#         's08': 'scale: 0.8',
-#         's09': 'scale: 0.9',
-#         's11': 'scale: 1.1',
-#         's12': 'scale: 1.2',
-#         's10': 'scale: 1.0',
-#         'Obs.': 'Observed',
-#         }
-
-# for id in ds.wflow_id.values:
-#     station_name = df_GaugeToPlot.loc[df_GaugeToPlot['wflow_id']==id, 'station_name'].values[0]
-#     station_id = id
-    
-#     dsq = ds.sel(wflow_id=id)
-#     # dsq.sel(time=dsq.time[~dsq.Q.sel(runs="Obs.").isnull()].values)
-        
-#     try:
-#         plot_signatures(
-#             dsq=dsq, labels=list(model_runs.keys()), colors=plot_colors,
-#             Folder_out=Folder_plots, station_name=station_name, station_id=station_id, save=False,
-#             )
-            
-#     except Exception as e:
-#         print(e)
-#         pass
-
-
+#%% 
 # ======================= peak timing errors =======================
 # set figure fonts
 SMALL_SIZE = 12

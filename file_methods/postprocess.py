@@ -184,7 +184,7 @@ def create_combined_hourly_dataset_FRBENL(working_folder:str,
         
         # folder_staticgeoms = find_staticgeoms(working_dir=working_folder)
         
-        #TODO: should be do-able with hydromt and staticgeoms
+        #TODO: should be do-able with hydromt and staticgeoms, Joost says there's no perfect approach here tbh, would have to do runs that are not modifying toml in memory. 
         gauges_maps = []
         
         for file in os.listdir(folder_staticgeoms):
