@@ -97,8 +97,22 @@ def peak_timing_errors(obs: DataArray,
             peak_sim = sim[idx]
         else:
             # define peak around idx as the max value inside of the window
+            #TODO: experiment to see if we can select from within the window in another way
+            
             values = sim[idx - window:idx + window + 1]
-            peak_sim = values[values.argmax()]
+            
+            if not values.isnull().all():
+                peak_sim = values[values.argmax()]
+                
+            else:
+                # Handle the case when all values are NaN
+                # For example, you could set peak_sim to NaN or to a specific value
+                peak_sim = np.nan
+        
+        # If peak_sim is NaN, skip this iteration
+        if pd.isnull(peak_sim):
+            timing_errors.append(np.nan)
+            continue
 
         # get xarray object of qobs peak, for getting the date and calculating the datetime offset
         peak_obs = obs[idx]

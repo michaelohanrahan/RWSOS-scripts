@@ -17,6 +17,7 @@ from file_methods.postprocess import find_model_dirs, find_toml_files, find_outp
 from metrics.run_peak_metrics import store_peak_info
 from hydro_plotting.peak_timing import plot_peaks_ts, peak_timing_for_runs
 
+
 #%%
 # ======================= Set up the working directory =======================
 working_folder = r"P:\11209265-grade2023\wflow\wflow_meuse_julia\wflow_meuse_20240125_riverN"
@@ -51,7 +52,19 @@ print(f'Loaded dataset with dimensions: {ds.dims}')
 #======================== Create Plotting Constants =======================
 #TODO: automate the color list, make permanent for each working folder? 
 
-color_list = ['#377eb8', '#ff7f00', '#4daf4a', '#f781bf', '#a65628', '#984ea3', '#999999', '#e41a1c', '#dede00', '#ff7f00', '#a65628', '#f781bf']
+color_list = ['#377eb8', 
+              '#ff7f00', 
+              '#4daf4a', 
+              '#f781bf', 
+              '#a65628', 
+              '#984ea3', 
+              '#999999', 
+              '#e41a1c', 
+              '#dede00', 
+              '#ff7f00', 
+              '#a65628', 
+              '#f781bf']
+
 run_keys = ds.runs.values
 
 color_dict = {f'{key}': color_list[i] for i, key in enumerate(run_keys)}

@@ -144,9 +144,18 @@ ds, df_gaugetoplot = create_combined_hourly_dataset_FRBENL(working_folder,
                                                            overwrite=False)
 print(f'Loaded dataset with dimensions: {ds.dims}')
 
-peak_dict = store_peak_info(ds, df_gaugetoplot, 'wflow_id', 72)
 
 #%%
+#===================== calculate the peak timing errors =======================
+
+start = datetime.strptime('2015-01-01', '%Y-%m-%d')
+end = datetime.strptime('2018-02-21', '%Y-%m-%d')
+
+peak_dict = store_peak_info(ds.sel(time=slice(start, end)), df_gaugetoplot, 'wflow_id', 72)
+
+
+#%%
+#======================== Create Plotting Constants =======================
 #TODO: automate the color list, make permanent for each working folder? 
 
 color_list = ['#377eb8', '#ff7f00', '#4daf4a', '#f781bf', '#a65628', '#984ea3', '#999999'] #blue, orange, green,pink,brown,purple,grey
@@ -154,8 +163,7 @@ color_list = ['#377eb8', '#ff7f00', '#4daf4a', '#f781bf', '#a65628', '#984ea3', 
 run_keys = ds.runs.values
 color_dict = {f'{key}': color_list[i] for i, key in enumerate(run_keys)}
 
-start = datetime.strptime('2015-01-01', '%Y-%m-%d')
-end = datetime.strptime('2018-02-21', '%Y-%m-%d')
+
 
 # # ======================= Plot hydrograph =======================
 # whole TS

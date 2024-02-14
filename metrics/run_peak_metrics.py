@@ -35,6 +35,8 @@ import numpy as np
 def store_peak_info(ds, df_GaugeToPlot, id_key, window):
     # Store peak timing information in a dictionary
     peak_dict = {}
+    
+    #TODO: return the peaks as date indexes, not as integers, to be able to plot the peaks in the correct date in the case of mismatched beigin and end in runs
 
     for id in ds[id_key].values:
         station_id = id
@@ -50,18 +52,25 @@ def store_peak_info(ds, df_GaugeToPlot, id_key, window):
 
         for run in ds_sub.runs.values:
             if run != 'Obs.':
+                if ds_sub.sel(runs=run).Q.isnull().all():
+                    continue
+                
                 sim = ds_sub.sel(runs=run).Q
 
                 peaks, timing_errors = peak_timing_errors(obs, sim, window=window)
 
-                peaks_sim = (peaks + timing_errors).astype(int)
+                print(f'run, peaks, timing_errors: {run}, \n {peaks}, \n  {timing_errors}')
                 # Check if peaks is empty
-                if len(peaks) > 0:
+                if len(peaks) > 0 and not np.isnan(peaks).all() and not np.isnan(timing_errors).all():
+                    
+                    peaks_sim = (peaks + timing_errors).astype(int)
                     mean_peak_timing = np.mean(np.abs(timing_errors))
                     obs_Q = obs[peaks].values
                     sim_Q = sim[peaks_sim].values
                     peak_mape = np.sum(np.abs((sim_Q - obs_Q) / obs_Q)) / peaks.size * 100
+                
                 else:
+                    peaks_sim = np.nan
                     mean_peak_timing = np.nan
                     peak_mape = np.nan
 
