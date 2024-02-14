@@ -12,12 +12,15 @@
 #%%
 
 from hydromt_wflow import WflowModel
-from model_building.update_gauges import main as update_gauges
+# from model_building.update_gauges import main as update_gauges
 from file_methods.postprocess import find_model_dirs, find_toml_files
 import geopandas as gpd
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
+import xarray as xr
+# import numpy as np
+from hydromt.log import setuplog
 
 
 def list_files_containing(root:str, snippet:str)->list:
@@ -168,6 +171,138 @@ def plot_dep_catchments(dep_id:list, gdf_sb, gdf_gg, basin, ax):
 
     return artists  # return the list of artists
 
+def dependency_solve(dependency_dict, done):
+    
+    #process now is cleared with each iteration
+    process_now = []
+    
+    for key, dep_list in dependency_dict.items():
+        
+        # l3vel 1
+        if len(dep_list) < 1 and not any(k in done for k in [key]):
+            process_now.append(key)
+        
+        # for each dep list check if it is satisfied by the done list
+        elif all(item in done for item in dep_list) and key not in done:
+            process_now.append(key)
+        else:
+            None
+    
+    return process_now
+
+def read_model(level, working_dir, model_snippet, models, tomls, scale:None):
+    """
+    #   For the level 1 we read the base model (fl1d_lakes) and then we set the root to the new model, and write with the new root
+    #   The new root will contain the new model with altered staticmaps
+    """
+    
+
+    if level==1:
+        mod = WflowModel(root=models[0], config_fn=tomls[0], mode='r', logger=logger)
+        print(f'\n - Level {level}, reading model {models[0]}\n')
+
+    elif level > 1:
+        model_fn = find_model_dirs(working_dir, os.path.join(f'{model_snippet}_level{level-1}', 'base'))[0]
+        print(f'Level {level}, reading model {model_fn}')
+        toml = find_toml_files(model_fn)[0]
+        mod = WflowModel(root=model_fn, config_fn=toml, mode='r', logger=logger)
+
+    mod.read()
+    mod.read_config()
+    mod.read_geoms()
+    mod.read_grid() 
+    
+    if scale:
+        run=scale
+        
+    else:
+        run='base'
+
+    new_root = os.path.join(working_dir, f'{model_snippet}_level{level}', run)
+    
+    os.makedirs(new_root, exist_ok=True)
+    
+    mod.set_root(root=new_root, mode='w+')
+    
+    return mod
+
+def set_scale_staticmaps_per_subcatchment(process_now, mod, scale_table, level, subcatch_layer, varname):
+    '''
+    level: int, the level of catchments being processed, 1-indexed, 1 being the most upstream with no dependencies
+    staticmap: xarray, the staticmap to be masked
+    
+    '''
+    sm = mod.grid[varname]
+    sub = mod.grid[subcatch_layer]
+    
+    for id in process_now:
+        print('processing:', id)
+        
+        mask = sub == id
+        try:
+            scale = scale_table.loc[id, f'level{level}']
+        
+        except KeyError:
+            scale = 1
+            print(f'Catchment {id} not in scale table, using scale factor 1')
+            continue
+        
+        sm.values[mask] = sm.values[mask] * scale
+        
+        # Append the scale factor to the text file
+        with open('scale_factors.txt', 'a') as file:
+            file.write(f"Catchment {id}: Scale Factor = {scale}\n")
+            
+        print(f' - Catchment {id} scaled by {scale}')
+    
+    fig, ax = plt.subplots(figsize=(10,10))
+    plt.title(f'Level {level} catchments, {varname}')
+    sm.plot(ax=ax)
+    plt.savefig(os.path.join(mod.root, f'level{level}_{varname}.png'))
+    print('overwriting staticmap')
+    
+    mod.grid[varname] = sm
+    mod.write_grid()
+
+def test_scale_staticmaps_per_subcatchment(process_now, mod, scales, level, subcatch_layer, varname):
+    '''
+    level: int, the level of catchments being processed, 1-indexed, 1 being the most upstream with no dependencies
+    staticmap: xarray, the staticmap to be masked
+    
+    '''
+    sm = mod.grid[varname]
+    sub = mod.grid[subcatch_layer]
+    
+    for id in process_now:
+        print('processing:', id)
+        
+        mask = sub == id
+        try:
+            scale = scale_table.loc[id, f'level{level}']
+        
+        except KeyError:
+            scale = 1
+            print(f'Catchment {id} not in scale table, using scale factor 1')
+            continue
+        
+        sm.values[mask] = sm.values[mask] * scale
+        
+        # Append the scale factor to the text file
+        with open('scale_factors.txt', 'a') as file:
+            file.write(f"Catchment {id}: Scale Factor = {scale}\n")
+            
+        print(f' - Catchment {id} scaled by {scale}')
+    
+    fig, ax = plt.subplots(figsize=(10,10))
+    plt.title(f'Level {level} catchments, {varname}')
+    sm.plot(ax=ax, vmin=0)
+    plt.savefig(os.path.join(mod.root, f'level{level}_{varname}.png'))
+    print('overwriting staticmap')
+    
+    mod.grid[varname] = sm
+    mod.write_grid()
+
+
 #%%
 
 #Declare the main working folder 
@@ -177,14 +312,21 @@ model_snippet = 'fl1d'
 models = find_model_dirs(working_dir, model_snippet)
 tomls = find_toml_files(models)
 
+
 #the csv that contains the translation of wflow_id to plot_id
 csv_dir = r"P:\11209265-grade2023\wflow\wflow_meuse_julia\wflow_meuse_per_catchment_N\wflow_id_to_plot.csv"
 wflow_to_id = pd.read_csv(csv_dir,index_col='wflow_id')
 wflow_id = list(wflow_to_id.index.values)
 
+
+#The table by which the scales are applied, in this case already loaded with level 1 scales
+scale_table = pd.read_csv(r"P:\11209265-grade2023\wflow\wflow_meuse_julia\wflow_meuse_per_catchment_N\wflow_id_scale_levels.csv", index_col='wflow_id')
+
+
 #discover statigeoms in this dir so that we can find the gauges
 staticgeoms_dir = find_staticgeoms(working_dir=working_dir)
 
+#for checking locations and gauges
 match_dict, models, tomls, wflow_id = process_gauges(models, 
                                                     wflow_id,
                                                     staticgeoms_dir[0],
@@ -193,91 +335,130 @@ match_dict, models, tomls, wflow_id = process_gauges(models,
 dependency_dict = build_dependency_dict(wflow_id)
 
 #%%
+#Fill this in manually for after reviewing the gauges
 chosen = 'locs'
+
 # use the data from associated with the key containing the chosen string
 for key in match_dict.keys():
     if chosen in key:
         chosen_gauges = match_dict[key]
         chosen_key = key
 
-# print(f'Chosen Gauges', chosen_key, chosen_gauges)
+print(f'Chosen Gauges', chosen_key, chosen_gauges)
 
+#use this info to create the geoms that will alter the staticmaps 
 subcatchment_files = list_files_containing(staticgeoms_dir[0], 'subcatch')
 chosen_subcatchment = [file for file in subcatchment_files if chosen in file]
+
+#Subcatchments
 gdf_sb = gpd.read_file(chosen_subcatchment[0])
 gdf_sb.rename({'value':'wflow_id'}, inplace=True, axis=1)
 gdf_sb.set_index('wflow_id', inplace=True, drop=True)
+
+#Gauges
 gdf_gg = chosen_gauges
+
+
+#Basin shape for plotting
+basin = gpd.read_file('P:\\11209265-grade2023\\wflow\\wflow_meuse_julia\\wflow_meuse_per_catchment_N\\fl1d_lakes\\staticgeoms\\basins.geojson')
+
+#The wflow ID of the most dependent catchment
+high_dep_wflow_id = 16
+
+#The logger for the model building
+logger = setuplog("build", log_level=20)
 
 # %%
 
-#plotting the gauges and subcatchments
-basin = gpd.read_file('P:\\11209265-grade2023\\wflow\\wflow_meuse_julia\\wflow_meuse_per_catchment_N\\fl1d_lakes\\staticgeoms\\basins.geojson')
-fig, ax = plt.subplots(figsize=(10,10))
-plot_dep_catchments(wflow_id, gdf_sb, gdf_gg, basin, ax)
-
-
 #%%
-from rasterio.features import geometry_mask
-values={k:1 for k in wflow_id}
-def mask_and_write(gdf_sb:gpd.GeoDataFrame, 
-                   process_now:list, 
-                   values:dict):
-    #maybe borrow masking code from the
-     
+
+scales = [0.6, 0.7, 0.8, 0.9, 1.1, 1.2, 1.3]
+
+done = set()
+
+for level in range(1, 2):
+    print(level)
     
+    process_now = dependency_solve(dependency_dict, done)
+    
+    done.update(process_now)    
+    
+    #plot to show progress
+    fig, ax = plt.subplots(figsize=(10,10))
+    plot_dep_catchments(process_now, gdf_sb, gdf_gg, basin, ax)
+    plt.title(f'Level {level} catchments')
+    plt.show()
 
-#%%
-import numpy as np
-import matplotlib.animation as animation
-#function takes dependency dict and wflow_id
+    #=======================
+    # find model, read, write
+    #=======================
+    
+    mod = read_model(level, working_dir, model_snippet, models, tomls, None)
+    
+    print(f'Modify staticmaps at level {level}')
 
+    staticmap = mod.staticmaps
+    varname = 'N_River'
+    
+    set_scale_staticmaps_per_subcatchment(process_now, mod, scale_table, level, f'wflow_subcatch_{chosen}', varname)
+    
+    print('writing config')
+    mod.write_config('wflow_sbm.toml', mod.root)
+    print('writing geoms')
+    mod.write_geoms("staticgeoms")
+    print(f'Model written to {mod.root}')
+    
+    process_next = dependency_solve(dependency_dict, done)
 
-
-def dependency_solve(dependency_dict, 
-                     gdf_sb, 
-                     gdf_gg, 
-                     basin, 
-                     working_dir,
-                     end_key):
-    done = set()
-    ax_list = []
-    for i in range(1, 15):
-        #process now is cleared with each iteration
-        process_now = []
+    #TODO: Inefficient to read grid when we could just copy the grid from the previous model, but hey, it works
+    for scale in scales:
+        mod = read_model(level+1, working_dir, model_snippet, models, tomls, scale)
         
-        #TODO: add the missing dependencies so that the next catchments are enabled
+        staticmap = mod.staticmaps
         
-        for key, dep_list in dependency_dict.items():
-            
-            # l3vel 1
-            if len(dep_list) < 1 and not any(k in done for k in [key]):
-                process_now.append(key)
-            
-            # for each dep list check if it is satisfied by the done list
-            elif all(item in done for item in dep_list) and key not in done:
-                process_now.append(key)
-            else:
-                None
+        set_scale_staticmaps_per_subcatchment(process_now, mod, scale_table, level, f'wflow_subcatch_{chosen}', varname)
         
-        # print('unmasked', process_now)
-        # print(f'processing, iteration {i} :', process_now)
+        print('writing config')
+        mod.write_config('wflow_sbm.toml', mod.root)
         
-        fig, ax = plt.subplots(figsize=(10,9))
-        artists = plot_dep_catchments(process_now, gdf_sb, gdf_gg, basin, ax)
-        ax_list.append(artists)
-        # print('processed_now', process_now)
-            
-        done.update(process_now) 
+        print('writing geoms')
         
-        print('iteration level:', i, '\n', process_now)
+        mod.write_geoms("staticgeoms")
         
-        if end_key in done:
-            break
-    print('done after iteration:', i)
-    # ani = animation.ArtistAnimation(fig, ax_list, interval=1000, blit=True)
-    # ani.save(os.path.join(working_dir, 'animation.gif'), writer='gif', fps=1)
-
-dependency_solve(dependency_dict, gdf_sb, gdf_gg, basin, working_dir, 16)
+        print(f'Model scale {scale} written to {mod.root}')
+    
+    print('finished iteration level:', level)
+        
+    
+    print('\n - Done:', done)
+    print('\n - Process_now:', process_now)
+    print('\n - Finished iteration level:', level)
+    
+    if high_dep_wflow_id in done:
+        print('done after iteration:', level)
+        break
+    else:
+        continue    
     
 #%%
+
+
+        
+def apply_scale_factor(staticmap, gdf_sb, scale_table, level, varname, process_now):
+
+    # Call the scale_now function
+    updated_staticmap = scale_now(process_now, gdf_sb, staticmap, scale_table, level, varname)
+
+    # Save the updated staticmap to a new file
+    updated_staticmap.to_netcdf(staticmap_output)
+
+    # Close the staticmap dataset
+    staticmap.close()
+
+# Usage example
+staticmap_output = 'staticmaps/staticmaps.nc'
+
+apply_scale_factor(staticmap_file, gdf_sb, scale_table, level, varname, process_now)
+        
+        
+    
