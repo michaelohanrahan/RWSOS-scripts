@@ -35,7 +35,9 @@ def find_toml_files(filtered_dirs):
     Returns:
         list: A list of paths to the found .toml files.
     """
-  
+    if filtered_dirs is str and not list:
+        filtered_dirs = [filtered_dirs]
+    
     toml_files = []
     for directory in filtered_dirs:
         for file in glob.glob(os.path.join(directory, '*.toml')):

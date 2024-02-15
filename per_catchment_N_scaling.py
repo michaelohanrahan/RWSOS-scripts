@@ -2,7 +2,7 @@
 '''Still working on this script, 
     but the idea is to identify files, and check contents with a list of gauges of interest.
     we know we want hourly gauges, we want to know which set of gauges is most relevant and if we
-    have to build another staticmaps. 
+    have to build another grid. 
     
     once established we then perform a sequential scaling of low to high dependency subcatchments
     
@@ -193,7 +193,7 @@ def dependency_solve(dependency_dict, done):
 def read_model(level, working_dir, model_snippet, models, tomls, scale:None):
     """
     #   For the level 1 we read the base model (fl1d_lakes) and then we set the root to the new model, and write with the new root
-    #   The new root will contain the new model with altered staticmaps
+    #   The new root will contain the new model with altered grid
     """
     
 
@@ -202,10 +202,10 @@ def read_model(level, working_dir, model_snippet, models, tomls, scale:None):
         print(f'\n - Level {level}, reading model {models[0]}\n')
 
     elif level > 1:
-        model_fn = find_model_dirs(working_dir, os.path.join(f'{model_snippet}_level{level-1}', 'base'))[0]
-        print(f'Level {level}, reading model {model_fn}')
-        toml = find_toml_files(model_fn)[0]
-        mod = WflowModel(root=model_fn, config_fn=toml, mode='r', logger=logger)
+        model_fn = find_model_dirs(os.path.join(working_dir, f'{model_snippet}_level{level-1}'), 'base')
+        print(f' - Level {level}, reading model {model_fn[0]}')
+        toml = find_toml_files(model_fn)
+        mod = WflowModel(root=model_fn[0], config_fn=toml[0], mode='r', logger=logger)
 
     mod.read()
     mod.read_config()
@@ -214,11 +214,11 @@ def read_model(level, working_dir, model_snippet, models, tomls, scale:None):
     
     if scale:
         run=scale
+        new_root = os.path.join(working_dir, f'{model_snippet}_level{level-1}', str(run))
         
     else:
         run='base'
-
-    new_root = os.path.join(working_dir, f'{model_snippet}_level{level}', run)
+        new_root = os.path.join(working_dir, f'{model_snippet}_level{level}', str(run))
     
     os.makedirs(new_root, exist_ok=True)
     
@@ -226,7 +226,7 @@ def read_model(level, working_dir, model_snippet, models, tomls, scale:None):
     
     return mod
 
-def set_scale_staticmaps_per_subcatchment(process_now, mod, scale_table, level, subcatch_layer, varname):
+def set_scale_grid_per_subcatchment(process_now, mod, scale_table, level, subcatch_layer, varname):
     '''
     level: int, the level of catchments being processed, 1-indexed, 1 being the most upstream with no dependencies
     staticmap: xarray, the staticmap to be masked
@@ -257,14 +257,14 @@ def set_scale_staticmaps_per_subcatchment(process_now, mod, scale_table, level, 
     
     fig, ax = plt.subplots(figsize=(10,10))
     plt.title(f'Level {level} catchments, {varname}')
-    sm.plot(ax=ax)
+    sm.plot(ax=ax, vmin=0, vmax=1)
     plt.savefig(os.path.join(mod.root, f'level{level}_{varname}.png'))
     print('overwriting staticmap')
     
     mod.grid[varname] = sm
     mod.write_grid()
 
-def test_scale_staticmaps_per_subcatchment(process_now, mod, scales, level, subcatch_layer, varname):
+def iterate_scales_for_next(process_now, mod, scale, level, subcatch_layer, varname):
     '''
     level: int, the level of catchments being processed, 1-indexed, 1 being the most upstream with no dependencies
     staticmap: xarray, the staticmap to be masked
@@ -277,25 +277,18 @@ def test_scale_staticmaps_per_subcatchment(process_now, mod, scales, level, subc
         print('processing:', id)
         
         mask = sub == id
-        try:
-            scale = scale_table.loc[id, f'level{level}']
-        
-        except KeyError:
-            scale = 1
-            print(f'Catchment {id} not in scale table, using scale factor 1')
-            continue
-        
+
         sm.values[mask] = sm.values[mask] * scale
         
         # Append the scale factor to the text file
         with open('scale_factors.txt', 'a') as file:
-            file.write(f"Catchment {id}: Scale Factor = {scale}\n")
+            file.write(f"Catchment {id}: Test Scale Factor = {scale}\n")
             
         print(f' - Catchment {id} scaled by {scale}')
     
     fig, ax = plt.subplots(figsize=(10,10))
     plt.title(f'Level {level} catchments, {varname}')
-    sm.plot(ax=ax, vmin=0)
+    sm.plot(ax=ax, vmin=0, vmax=1)
     plt.savefig(os.path.join(mod.root, f'level{level}_{varname}.png'))
     print('overwriting staticmap')
     
@@ -346,7 +339,7 @@ for key in match_dict.keys():
 
 print(f'Chosen Gauges', chosen_key, chosen_gauges)
 
-#use this info to create the geoms that will alter the staticmaps 
+#use this info to create the geoms that will alter the grid 
 subcatchment_files = list_files_containing(staticgeoms_dir[0], 'subcatch')
 chosen_subcatchment = [file for file in subcatchment_files if chosen in file]
 
@@ -371,14 +364,20 @@ logger = setuplog("build", log_level=20)
 # %%
 
 #%%
-
+#After setting optimal values at each level, we access and scale the next level of catchments
+#Skipping 1 as that will be accounted for by the 'base'
 scales = [0.6, 0.7, 0.8, 0.9, 1.1, 1.2, 1.3]
 
 done = set()
 
+#currently working with one level at a time
 for level in range(1, 2):
     print(level)
     
+    #=======================
+    # This level dependency is determined and the done set is updated to inform the 
+    # next iteration of the catchments what dependencies are satisfied
+    #=======================
     process_now = dependency_solve(dependency_dict, done)
     
     done.update(process_now)    
@@ -390,17 +389,21 @@ for level in range(1, 2):
     plt.show()
 
     #=======================
-    # find model, read, write
+    # find model, read, and set new root
     #=======================
     
     mod = read_model(level, working_dir, model_snippet, models, tomls, None)
     
-    print(f'Modify staticmaps at level {level}')
+    print(f'Modify grid at level {level}')
 
-    staticmap = mod.staticmaps
+    #=======================
+    # write staticmap for this new level base. Using the chosen scale in scale table
+    #=======================
+    
+    staticmap = mod.grid
     varname = 'N_River'
     
-    set_scale_staticmaps_per_subcatchment(process_now, mod, scale_table, level, f'wflow_subcatch_{chosen}', varname)
+    set_scale_grid_per_subcatchment(process_now, mod, scale_table, level, f'wflow_subcatch_{chosen}', varname)
     
     print('writing config')
     mod.write_config('wflow_sbm.toml', mod.root)
@@ -408,15 +411,17 @@ for level in range(1, 2):
     mod.write_geoms("staticgeoms")
     print(f'Model written to {mod.root}')
     
+    #We do not update the set done. So we can look ahead and scale the next level of catchments
     process_next = dependency_solve(dependency_dict, done)
 
     #TODO: Inefficient to read grid when we could just copy the grid from the previous model, but hey, it works
+    # it also keeps things readable from the hydromt side of things re: file structure
     for scale in scales:
         mod = read_model(level+1, working_dir, model_snippet, models, tomls, scale)
         
-        staticmap = mod.staticmaps
+        staticmap = mod.grid
         
-        set_scale_staticmaps_per_subcatchment(process_now, mod, scale_table, level, f'wflow_subcatch_{chosen}', varname)
+        iterate_scales_for_next(process_next, mod, scale, level, f'wflow_subcatch_{chosen}', varname)
         
         print('writing config')
         mod.write_config('wflow_sbm.toml', mod.root)
@@ -429,7 +434,6 @@ for level in range(1, 2):
     
     print('finished iteration level:', level)
         
-    
     print('\n - Done:', done)
     print('\n - Process_now:', process_now)
     print('\n - Finished iteration level:', level)
@@ -440,25 +444,6 @@ for level in range(1, 2):
     else:
         continue    
     
-#%%
 
-
-        
-def apply_scale_factor(staticmap, gdf_sb, scale_table, level, varname, process_now):
-
-    # Call the scale_now function
-    updated_staticmap = scale_now(process_now, gdf_sb, staticmap, scale_table, level, varname)
-
-    # Save the updated staticmap to a new file
-    updated_staticmap.to_netcdf(staticmap_output)
-
-    # Close the staticmap dataset
-    staticmap.close()
-
-# Usage example
-staticmap_output = 'staticmaps/staticmaps.nc'
-
-apply_scale_factor(staticmap_file, gdf_sb, scale_table, level, varname, process_now)
-        
         
     
