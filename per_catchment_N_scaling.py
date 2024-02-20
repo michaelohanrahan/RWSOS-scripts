@@ -6,7 +6,7 @@
     
     once established we then perform a sequential scaling of low to high dependency subcatchments
     
-    NEEDS: To finish the overall approach, currently finished checks and moving onto masking and scaling.
+    NEEDS TO HAVE: To finish the overall approach, currently finished checks and moving onto masking and scaling.
     NICE: .'''
 
 #%%
