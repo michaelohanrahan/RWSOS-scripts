@@ -20,9 +20,15 @@ def find_model_dirs(path, snippets):
     """
     result = []
     for root, dirs, _ in os.walk(path):
-        for directory in dirs:
-            if any(snippet in directory for snippet in snippets):
-                result.append(os.path.join(root, directory))
+        if root == path:  # Ensure that we are at the first level
+            if not snippets:  # If snippets list is empty, add all directories.
+                for directory in dirs:
+                    result.append(os.path.join(root, directory))
+            else:
+                for directory in dirs:
+                    if any(snippet in directory for snippet in snippets):
+                        result.append(os.path.join(root, directory))
+        break  # Exit after processing the first level to avoid going deeper
     return result
 
 def find_toml_files(filtered_dirs):
@@ -137,9 +143,6 @@ def create_combined_hourly_dataset_FRBENL(working_folder:str,
     '''
     
     fn_ds = os.path.join(working_folder, '_output/ds_obs_model_combined.nc')
-
-    
-    fn_ds = os.path.join(working_folder, '_output/ds_obs_model_combined.nc')
     
     # ======================= Load stations/gauges to plot =======================
     # load csv that contains stations/gauges info that we want to plot
@@ -174,43 +177,43 @@ def create_combined_hourly_dataset_FRBENL(working_folder:str,
         
         print(output_files)
         
-        # try:
-        #     if os.path.exists(os.path.join(working_folder, 'staticgeoms')):
-        #         folder_staticgeoms = os.path.join(working_folder, 'staticgeoms')
-        #     else:
-        #         folder_staticgeoms = os.path.join(model_dirs[0], 'staticgeoms')  # folder that contain staticgeoms
-        # except Exception as e:
-        #     print('Could not find staticgeoms folder')
-        #     return None
-        folder_staticgeoms = r"P:\11209265-grade2023\wflow\wflow_meuse_julia\wflow_meuse_202303\staticgeoms"
+        # # try:
+        # #     if os.path.exists(os.path.join(working_folder, 'staticgeoms')):
+        # #         folder_staticgeoms = os.path.join(working_folder, 'staticgeoms')
+        # #     else:
+        # #         folder_staticgeoms = os.path.join(model_dirs[0], 'staticgeoms')  # folder that contain staticgeoms
+        # # except Exception as e:
+        # #     print('Could not find staticgeoms folder')
+        # #     return None
+        # folder_staticgeoms = r"P:\11209265-grade2023\wflow\wflow_meuse_julia\wflow_meuse_202303\staticgeoms"
         
-        # folder_staticgeoms = find_staticgeoms(working_dir=working_folder)
+        # # folder_staticgeoms = find_staticgeoms(working_dir=working_folder)
         
-        #TODO: should be do-able with hydromt and staticgeoms, Joost says there's no perfect approach here tbh, would have to do runs that are not modifying toml in memory. 
-        gauges_maps = []
+        # #TODO: should be do-able with hydromt and staticgeoms, Joost says there's no perfect approach here tbh, would have to do runs that are not modifying toml in memory. 
+        # gauges_maps = []
         
-        for file in os.listdir(folder_staticgeoms):
-            if 'gauges' in file:
-                gauges_maps.append(os.path.splitext(file)[0])
+        # for file in os.listdir(folder_staticgeoms):
+        #     if 'gauges' in file:
+        #         gauges_maps.append(os.path.splitext(file)[0])
         
-        # mod = WflowModel(model_dirs[0], config_fn=toml_files[0], mode="r")
-        mod = WflowModel(root=r"P:\11209265-grade2023\wflow\wflow_meuse_julia\wflow_meuse_202303\run_default", mode='r', config_fn='wflow_sbm_eobs.toml')
+        # # mod = WflowModel(model_dirs[0], config_fn=toml_files[0], mode="r")
+        # mod = WflowModel(root=r"P:\11209265-grade2023\wflow\wflow_meuse_julia\wflow_meuse_202303\run_default", mode='r', config_fn='wflow_sbm_eobs.toml')
 
-        mod_stations = {}
-        for gauge_map in gauges_maps:
+        # mod_stations = {}
+        # for gauge_map in gauges_maps:
             
-            if 'wflow_id' in mod.staticgeoms[gauge_map].columns:
-                mod_stations[f'{gauge_map}'] = mod.staticgeoms[gauge_map]["wflow_id"].values
-                print(f'{gauge_map} : added')
+        #     if 'wflow_id' in mod.staticgeoms[gauge_map].columns:
+        #         mod_stations[f'{gauge_map}'] = mod.staticgeoms[gauge_map]["wflow_id"].values
+        #         print(f'{gauge_map} : added')
                 
-            elif gauge_map == "gauges":
-                mod_stations[f'{gauge_map}'] = np.array([2015], dtype=np.int64)  # Discharge outlet: Rhine 709, Meuse 2015
-                print(f'{gauge_map} : added manually as 2015')
+        #     elif gauge_map == "gauges":
+        #         mod_stations[f'{gauge_map}'] = np.array([2015], dtype=np.int64)  # Discharge outlet: Rhine 709, Meuse 2015
+        #         print(f'{gauge_map} : added manually as 2015')
             
-            else:
-                print(f'{gauge_map} : no wflow_id')
+        #     else:
+        #         print(f'{gauge_map} : no wflow_id')
         
-        print('\nmod_stations:\n', mod_stations)
+        # print('\nmod_stations:\n', mod_stations)
         
         # ====================== load the model results into memory
         
