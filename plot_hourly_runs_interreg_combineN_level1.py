@@ -24,10 +24,12 @@ working_folder = r"p:\11209265-grade2023\wflow\wflow_meuse_julia\wflow_meuse_per
 sys.path.append(working_folder)
 
 # ======================= Define the runs and load model runs =======================
-snippets = []
+snippets = ['.', 'base']
 model_dirs = find_model_dirs(working_folder, snippets)
 
-[model_dirs.append(folder) for folder in [r"p:\11209265-grade2023\wflow\wflow_meuse_julia\compare_fl1d_interreg\fl1d_lakes"]]
+
+[model_dirs.append(folder) for folder in [r"p:\11209265-grade2023\wflow\wflow_meuse_julia\compare_fl1d_interreg\fl1d_lakes",
+                                          r"P:\11209265-grade2023\wflow\wflow_meuse_julia\compare_fl1d_interreg\interreg"]]
 
 toml_files = find_toml_files(model_dirs)  #will be useful when we can use the Wflowmodel to extract geoms and results
 
@@ -39,7 +41,7 @@ ds, df_gaugetoplot = create_combined_hourly_dataset_FRBENL(working_folder,
                                                            model_dirs, 
                                                            output='output.csv',
                                                            toml_files= toml_files, 
-                                                           overwrite=False)
+                                                           overwrite=True)
 
 print(f'Loaded dataset with dimensions: {ds.dims}')
 
