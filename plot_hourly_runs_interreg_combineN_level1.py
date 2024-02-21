@@ -74,7 +74,7 @@ peak_dict = store_peak_info(ds.sel(time=slice(start,end)), df_gaugetoplot, 'wflo
 # # ======================= Plot Peak Timing Hydrograph =======================
 # plot and store peak timing information in a dictionary ''peak timing info'
 # dict is indexed by (key: station id), then by (key: run name), then a tuple of (0: obs indices, 1:sim indices and 2:timing errors)
-Folder_plots = os.path.join(working_folder,'..','combined_run_plot' '_plotcombined_N')  # folder to save plots
+Folder_plots = os.path.join(working_folder,'_figures')  # folder to save plots
 
 print(f'len ds time: {len(ds.time)}')
 
