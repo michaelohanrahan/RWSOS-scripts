@@ -43,7 +43,7 @@ ds, df_gaugetoplot = create_combined_hourly_dataset_FRBENL(working_folder,
                                                            model_dirs, 
                                                            output='output.csv',
                                                            toml_files= toml_files, 
-                                                           overwrite=True)
+                                                           overwrite=False)
 
 print(f'Loaded dataset with dimensions: {ds.dims}')
 
@@ -72,7 +72,7 @@ start = datetime.strptime('2015-01-01', '%Y-%m-%d')
 
 end = datetime.strptime('2018-02-21', '%Y-%m-%d')
 
-peak_dict = store_peak_info(ds.sel(time=slice(start,end)), df_gaugetoplot, 'wflow_id', 72)
+peak_dict = store_peak_info(ds.sel(time=slice(start,end)), 'wflow_id', 72)
 
 #%%
 # # ======================= Plot Peak Timing Hydrograph =======================
@@ -90,7 +90,7 @@ plot_peaks_ts(ds,
               peak_dict=peak_dict,
               savefig=True)
 
-
+#//////////////////////////////////////////////////////////////////////
 #%% 
 # ======================= peak timing errors =======================
 # set figure fonts

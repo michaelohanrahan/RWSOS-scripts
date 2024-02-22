@@ -300,6 +300,34 @@ def iterate_scales_for_next(process_now, mod, scale, level, subcatch_layer, varn
     
     mod.grid[varname] = sm
     mod.write_grid()
+    
+
+def find_next_dep(next_level:int, plot=True):
+
+    done = set()
+
+    for level in range(1, next_level+1):
+        
+        #=======================
+        # This level dependency is determined and the done set is updated to inform the 
+        # next iteration of the catchments what dependencies are satisfied
+        #=======================
+        process_now = dependency_solve(dependency_dict, done)
+        
+        done.update(process_now)
+        
+        if level == next_level:
+            
+            print('For level {next_level}:', level)
+            print('\nThe next catchments to be processed:\n', process_now)
+        
+            if plot:
+                #plot to show progress
+                fig, ax = plt.subplots(figsize=(10,10))
+                ax = plot_dep_catchments(process_now, gdf_sb, gdf_gg, basin, ax, scale_table)
+                plt.title(f'Level {level} catchments Meuse')
+                plt.legend(loc='best')  # TODO: make this work
+                plt.show()
 
 
 #%%
@@ -368,49 +396,22 @@ high_dep_wflow_id = 16
 logger = setuplog("build", log_level=20)
 
 # %%
+#=============================Declare Next dep level=============================
 
-def find_next_dep(next_level:int, plot=True):
+next_level = 3
 
-    done = set()
-
-    for level in range(1, next_level+1):
-        
-        #=======================
-        # This level dependency is determined and the done set is updated to inform the 
-        # next iteration of the catchments what dependencies are satisfied
-        #=======================
-        process_now = dependency_solve(dependency_dict, done)
-        
-        done.update(process_now)
-        
-        if level == next_level:
-            
-            print('For level {next_level}:', level)
-            print('\nThe next catchments to be processed:\n', process_now)
-        
-            if plot:
-                #plot to show progress
-                fig, ax = plt.subplots(figsize=(10,10))
-                ax = plot_dep_catchments(process_now, gdf_sb, gdf_gg, basin, ax, scale_table)
-                plt.title(f'Level {level} catchments Meuse')
-                plt.legend(loc='best')  # TODO: make this work
-                plt.show()
 
 find_next_dep(3, plot=True)
 
+# have to set our ideal scale in the scale table
 #%%
 #After setting optimal values at each level, we access and scale the next level of catchments
 #Skipping 1 as that will be accounted for by the 'base'
-
-next_level = 3
 
 
 scales = [0.6, 0.7, 0.8, 0.9, 1.1, 1.2, 1.3]
 
 done = set()
-
-#currently working with one level at a time
-import matplotlib.pyplot as plt
 
 for level in range(1, next_level+1):
     print('level: ', level)
@@ -423,7 +424,6 @@ for level in range(1, next_level+1):
     
     done.update(process_now)
     
-    
     level_root = os.path.join(working_dir, f'fl1d_level{level}')
 
     #=======================
@@ -431,7 +431,7 @@ for level in range(1, next_level+1):
     #=======================
     if os.path.exists(level_root):
         print(f"Level {level} already exists.")
-        # continue
+        continue
     
     if not os.path.exists(level_root):
         os.makedirs(os.path.join(working_dir, f'fl1d_level{level}'))
@@ -444,7 +444,7 @@ for level in range(1, next_level+1):
     plt.legend(loc='best')  # TODO: make this work
     plt.savefig(os.path.join(level_root, f'level{level}_catchments.png'))
     plt.show()
-    continue
+
     mod = read_model(level, working_dir, model_snippet, models, tomls, None)
     
     print(f'Modify grid at level {level}')

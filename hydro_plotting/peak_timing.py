@@ -165,125 +165,136 @@ def peak_timing_for_runs(ds:xr.Dataset,
     
     '''
     
-    for station_id in ds.wflow_id.values:
+    for i, station_id in enumerate(ds.wflow_id.values):
         # try:
         station_name = df_GaugeToPlot.loc[df_GaugeToPlot['wflow_id']==station_id, 'station_name'].values[0]
         
-        try:
-            # select a station
-            ds_sub = ds.sel(wflow_id=station_id)
+        # try:
+        # select a station
+        ds_sub = ds.sel(wflow_id=station_id)
 
-            # get obs data
-            obs = ds_sub.sel(runs='Obs.').Q
-
-            # print out peak timing in Obs.
-            # print(f'Peak timing for {station_name} (id: {station_id})')
-            # print(list(obs[peak_dict['s07']['peaks']].time.values.astype(str)))
+        # get obs data
+        obs = ds_sub.sel(runs='Obs.').Q
+        
+        # plot figures
+        if plotfig == True:
             
-            # plot figures
-            if plotfig == True:
-                
-                peak_dict_sid = peak_dict[station_id]
-                keys = list(peak_dict_sid.keys())
-                markers = ['o', 's', '^', 'D', 'x', '*']
-                
-                fig = plt.figure(figsize=(15, 10))  # Wider figure to accommodate side-by-side bar plots
-                
-                # Scatter plot of Qobs vs timing error
-                ax1 = plt.subplot2grid((2, 2), (0, 0))  # Scatter plot spans the first row
-                
-                for (run, data), marker in zip(peak_dict_sid.items(), markers):
-                    if run != 'Obs.':
-                        peaks = data['peaks']
-                        timing_errors = data['timing_errors']
-                        ax1.scatter(obs.sel(time=peaks), timing_errors, marker=marker, label=run)
-                        # else:
-                        #     print(f"Data contains non-finite values: {data}")
-                
-                ax1.legend()
-                ax1.set_xlabel('Qobs (m\u00b3 s\u207b\u00b9)')
-                ax1.axhline(0, color='black', alpha=0.5, linestyle='--')
-                ax1.set_ylabel('Timing Error (h)')
-                ax1.set_title(f'Meuse at {station_name} (id: {station_id}) - Scatter plot of Qobs vs timing error')
-                
-                ax2 = plt.subplot2grid((2, 2), (1, 0))  # First plot in second row
-                
-                
-                
-                colors = ['skyblue' if key != 'Obs.' else 'grey' for key in keys]
+            peak_dict_sid = peak_dict[station_id]
+            keys = list(peak_dict_sid.keys())
+            markers = ['o', 's', '^', 'D', 'x', '*']
+            
+            fig = plt.figure(figsize=(15, 10))  # Wider figure to accommodate side-by-side bar plots
+            
+            # Scatter plot of Qobs vs timing error
+            ax1 = plt.subplot2grid((2, 2), (0, 0))  # Scatter plot spans the first row
 
+            for (run, data), marker in zip(peak_dict_sid.items(), markers):
                 if run != 'Obs.':
+                    peaks = data['peaks']
+                    timing_errors = data['timing_errors']
+                    ax1.scatter(obs.sel(time=peaks), timing_errors, marker=marker, label=run)
+                    # else:
+                    #     print(f"Data contains non-finite values: {data}")
+
+            ax1.legend()
+            ax1.set_xlabel('Qobs (m\u00b3 s\u207b\u00b9)')
+            ax1.axhline(0, color='black', alpha=0.5, linestyle='--')
+            ax1.set_ylabel('Timing Error (h)')
+            ax1.set_title(f'Meuse at {station_name} (id: {station_id}) - Scatter plot of Qobs vs timing error')
+
+            ax2 = plt.subplot2grid((2, 2), (1, 0))  # First plot in second row
+
+            colors = ['skyblue' if key != 'Obs.' else 'grey' for key in keys]
+
+            means = []
+
+            # Set x-axis labels
+            ax2.set_xticklabels(keys, rotation=15)
+
+            for i, (run, data) in enumerate(peak_dict_sid.items()):
+                # if run != 'Obs.':
                     
-                    data = [peak_dict_sid[key]['timing_errors'] if key != 'Obs.' else [0] for key in keys]  # Use the raw data for the boxplot
-                    
-                    # print('data', data)
-                    
-                    means = [np.mean(peak_dict_sid[key]['timing_errors']) if key != 'Obs.' else 0 for key in keys]
-
-                    # Create a boxplot
-                    bplot = ax2.boxplot(data, patch_artist=True, notch=True, vert=1, showfliers=False)  # Set showfliers=False to remove outliers
-
-                    # Draw a line between the means
-                    ax2.plot(range(1, len(means) + 1), means, color='r', linestyle='--')
-
-                    # Set colors for each box
-                    for patch, color in zip(bplot['boxes'], colors):
-                        patch.set_facecolor(color)
-
-                    # Display the mean value for each run
-                    for i, mean in enumerate(means, start=1):
-                        ax2.text(i, mean, round(mean, 1), ha='center', va='bottom')
-
-                # Set x-axis labels
-                ax2.set_xticklabels(keys, rotation=15)
-                    
-                ax2.set_xlabel('Run')
-                ax2.set_ylabel('Peak Timing (h)')
-                ax2.set_title('Peak Timing Per Run')
-
-                # Mean absolute percentage peak error bar plot
-                ax3 = plt.subplot2grid((2, 2), (1, 1))  # Second plot in second row
-                peak_mapes = [peak_dict_sid[key]['peak_mape'] for key in keys]
-                bars = ax3.bar(keys, peak_mapes, color=colors)  # add yerr parameter
-
-                # Add the data values on top of the bars
-                for bar in bars:
-                    yval = bar.get_height()
-                    ax3.text(bar.get_x() + bar.get_width()/2, 
-                            yval + 1,  # Add the error and a small offset from the top of the bar
-                            round(yval, 2), 
-                            ha='center', 
-                            va='bottom')
+                data = data['timing_errors']
                 
-                # ax3.set_ylim(0, max(peak_mapes) + 5)
-                # ax3.set_ylim(0, 48)
-                ax3.set_xticklabels(list(peak_dict_sid.keys()), rotation=15)
-                ax3.set_xlabel('Run')
-                ax3.set_ylabel('MAPE (100%)')
-                ax3.set_title('Mean Absolute Percentage Peak error (MAPE, Instaneous Discharge)')
+                if run == 'Obs.':
+                    mean = 0
+                    means.append(mean)
+                    data = np.zeros(10)
+                else:
+                    mean = np.nanmean(data, axis=0)
+                
+                means.append(mean)
+                
+                print('run,mean', (run, mean))
+                
+                # Create a boxplot
+                bplot = ax2.boxplot(data, positions=[i+1], patch_artist=True, notch=True, vert=1, showfliers=False)  # Set showfliers=False to remove outliers
 
-                # Adjust layout to prevent overlap
-                plt.tight_layout()
-                # plt.show()
-                
-                #define start and end as the first and last timestamp in the ds
-                start = pd.to_datetime(ds.time.min().values.astype(datetime))
-                end = pd.to_datetime(ds.time.max().values.astype(datetime))
-                
-                
-                if savefig:
-                    timeseries_folder = os.path.join(folder_plots, 'Event_Timing_Metrics')
-                    os.makedirs(timeseries_folder, exist_ok=True)
-                    filename = f'PeakTimingMetrics_{station_name}_{station_id}_{start.year}{start.month}{start.day}-{end.year}{end.month}{end.day}.png'
-                    plt.savefig(os.path.join(timeseries_folder, filename), dpi=300)
+            # Draw a line between the means
+            ax2.plot(range(1, len(means) + 1), means, color='r', linestyle='--')
 
-            if savefig == True and plotfig == False:
-                print('plotfig is False, no figure saved.')
-            else:
-                None
+            # Set colors for each box
+            for patch, color in zip(bplot['boxes'], colors):
+                patch.set_facecolor(color)
+
+            [ax2.text(i+1, mean, round(mean, 1), ha='center', va='bottom') for i, mean in enumerate(means)]
+
+            print(len(ax2.get_xticks()))
+            print(len(keys))
+            
+            # Set x-axis labels
+            # ax2.set_xticklabels(keys, rotation=15)
+                
+            ax2.set_xlabel('Run')
+            ax2.set_ylabel('Peak Timing (h)')
+            ax2.set_title('Peak Timing Per Run')
+
+            # Mean absolute percentage peak error bar plot
+            ax3 = plt.subplot2grid((2, 2), (1, 1))  # Second plot in second row
+            peak_mapes = [peak_dict_sid[key]['peak_mape'] for key in keys]
+            bars = ax3.bar(keys, peak_mapes, color=colors)  # add yerr parameter
+
+            
+            # Add the data values on top of the bars
+            for bar in bars:
+                yval = bar.get_height()
+                ax3.text(bar.get_x() + bar.get_width()/2, 
+                        yval + 1,  # Add the error and a small offset from the top of the bar
+                        round(yval, 2), 
+                        ha='center', 
+                        va='bottom')
+            
+            # ax3.set_ylim(0, max(peak_mapes) + 5)
+            ax3.set_ylim(0, np.nanmax(peak_mapes)*1.2)
+            ax3.set_xticklabels(list(peak_dict_sid.keys()), rotation=15)
+            ax3.set_xlabel('Run')
+            ax3.set_ylabel('MAPE (100%)')
+            ax3.set_title('Mean Absolute Percentage Peak error (MAPE, Instaneous Discharge)')
+
+            # Adjust layout to prevent overlap
+            plt.tight_layout()
+            # plt.show()
+            
+            #define start and end as the first and last timestamp in the ds
+            start = pd.to_datetime(ds.time.min().values.astype(datetime))
+            end = pd.to_datetime(ds.time.max().values.astype(datetime))
+            
+            
+            if savefig:
+                timeseries_folder = os.path.join(folder_plots, 'Event_Timing_Metrics')
+                os.makedirs(timeseries_folder, exist_ok=True)
+                filename = f'PeakTimingMetrics_{station_name}_{station_id}_{start.year}{start.month}{start.day}-{end.year}{end.month}{end.day}.png'
+                plt.savefig(os.path.join(timeseries_folder, filename), dpi=300)
+            if i == 0:
+                break
+
+        if savefig == True and plotfig == False:
+            print('plotfig is False, no figure saved.')
+        else:
+            None
         
             
-        except Exception as e:
-            print(f'An error occurred for {station_name} (id: {station_id}): {str(e)}')
-            traceback.print_exc()
+        # except Exception as e:
+        #     print(f'An error occurred for {station_name} (id: {station_id}): {str(e)}')
+        #     traceback.print_exc()
 

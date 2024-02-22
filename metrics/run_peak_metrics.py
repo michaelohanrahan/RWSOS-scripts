@@ -2,42 +2,22 @@ from metrics.peak_metrics import peak_timing_errors
 import numpy as np
 import pandas as pd
 
-# def store_peak_info(ds, df_GaugeToPlot, id_key, window):
-#     # Store peak timing information in a dictionary
-#     peak_dict = {}
-
-#     for id in ds[id_key].values:
-#         station_id = id
-
-#         # select a station using the id grouping and the sub selection id (station_id)
-#         ds_sub = ds.sel({id_key:station_id})
-
-#         # get obs data
-#         obs = ds_sub.sel(runs='Obs.').Q
-
-#         peak_dict[id] = {}
-
-#         for run in ds_sub.runs.values:
-#             if run != 'Obs.':
-#                 sim = ds_sub.sel(runs=run).Q
-
-#                 peaks_obs, timing_errors = peak_timing_errors(obs, sim, window=window)
-
-#                 peaks_sim = (peaks_obs + timing_errors).astype(int)
-
-#                 # Expand the inner dictionary with the inner loop
-#                 peak_dict[id][run] = (peaks_sim, timing_errors)
-
-#         peak_dict[id]['Obs.'] = (peaks_obs, timing_errors)
-
-#     return peak_dict
 
 
-def store_peak_info(ds, df_GaugeToPlot, id_key, window):
-    # Store peak timing information in a dictionary
+def store_peak_info(ds, id_key, window):
+    """
+    Store peak timing information in a dictionary.
+
+    Parameters:
+    - ds (xarray.Dataset): Dataset containing the data.
+    - df_GaugeToPlot (pandas.DataFrame): DataFrame containing the gauge information.
+    - id_key (str): Key to identify the station in the dataset.
+    - window (int): Window size for peak timing errors.
+
+    Returns:
+    - peak_dict (dict): Dictionary containing the peak timing information for each station and run.
+    """
     peak_dict = {}
-    
-    #TODO: make any recordings that are exaxtly window distance to nan
 
     for id in ds[id_key].values:
         station_id = id
@@ -85,8 +65,8 @@ def store_peak_info(ds, df_GaugeToPlot, id_key, window):
                     # Convert timing_errors to timedelta (assuming timing_errors are in hours)
                     timing_errors_timedelta = pd.to_timedelta(timing_errors, unit='h')
                     
-                    print('timing_errors', timing_errors)   
-                    print('peaks', peaks)
+                    # print('timing_errors', timing_errors)   
+                    # print('peaks', peaks)
                     
                     # Add timedelta to datetime
                     peaks_sim = peaks + timing_errors_timedelta

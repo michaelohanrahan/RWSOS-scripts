@@ -70,7 +70,7 @@ start = datetime.strptime('2015-01-01', '%Y-%m-%d')
 
 end = datetime.strptime('2018-02-21', '%Y-%m-%d')
 
-peak_dict = store_peak_info(ds.sel(time=slice(start,end)), df_gaugetoplot, 'wflow_id', 72)
+peak_dict = store_peak_info(ds.sel(time=slice(start,end)), 'wflow_id', 72)
 
 #%%
 # # ======================= Plot Peak Timing Hydrograph =======================
