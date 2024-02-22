@@ -62,24 +62,39 @@ def store_peak_info(ds, df_GaugeToPlot, id_key, window):
                 
                 peaks, timing_errors = peak_timing_errors(obs, sim, window=window)
 
-                #some timing errors should be nan where they aree the same as the window.
-                mask = np.abs(timing_errors) == window
-                timing_errors[mask] = np.nan
-                peaks[mask] = np.nan
+                
                 
                 # print(f'run, peaks, timing_errors: {run}, \n {peaks}, \n  {timing_errors}')
                 # Check if peaks is empty
                 if len(peaks) > 0 and not np.isnan(peaks).all() and not np.isnan(timing_errors).all():
                     
+                    timing_errors = np.array(timing_errors)
+                    peaks = pd.Series(peaks)
+                
+                    #some timing errors should be nan where they aree the same as the window.
+                    mask = np.abs(timing_errors) == window
+                    
+                    if np.any(mask):
+                        # print('MASK', mask)
+                        # print('where', np.where(mask)[0])
+                        timing_errors[np.where(mask)[0]] = np.nan
+                        peaks[np.where(mask)[0]] = pd.NaT
+                    
+                    peaks = np.array(peaks)
+                    
                     # Convert timing_errors to timedelta (assuming timing_errors are in hours)
                     timing_errors_timedelta = pd.to_timedelta(timing_errors, unit='h')
-
+                    
+                    print('timing_errors', timing_errors)   
+                    print('peaks', peaks)
+                    
                     # Add timedelta to datetime
                     peaks_sim = peaks + timing_errors_timedelta
 
-                    mean_peak_timing = np.mean(np.abs(timing_errors))
+                    mean_peak_timing = np.nanmean(np.abs(timing_errors))
                     
-                    peaks_index = pd.DatetimeIndex(peaks)
+                    peaks_index = pd.DatetimeIndex(peaks).dropna()
+                    
                     obs_Q = obs.sel(time=peaks_index).values
                     sim_Q = sim.sel(time=peaks_index).values
                     
@@ -91,8 +106,8 @@ def store_peak_info(ds, df_GaugeToPlot, id_key, window):
                     peak_mape = np.nan
 
                 # Expand the inner dictionary with the inner loop
-                peak_dict[id][run] = {'peaks': peaks_sim, 
-                                      'timing_errors': timing_errors, 
+                peak_dict[id][run] = {'peaks': peaks_sim.dropna(), 
+                                      'timing_errors': timing_errors[~np.isnan(timing_errors)], 
                                       'mean_peak_timing': mean_peak_timing,
                                       'peak_mape': peak_mape}
 
