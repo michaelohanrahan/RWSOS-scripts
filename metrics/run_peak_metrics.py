@@ -37,7 +37,7 @@ def store_peak_info(ds, df_GaugeToPlot, id_key, window):
     # Store peak timing information in a dictionary
     peak_dict = {}
     
-    #TODO: return the peaks as date indexes, not as integers, to be able to plot the peaks in the correct date in the case of mismatched beigin and end in runs
+    #TODO: make any recordings that are exaxtly window distance to nan
 
     for id in ds[id_key].values:
         station_id = id
@@ -53,13 +53,20 @@ def store_peak_info(ds, df_GaugeToPlot, id_key, window):
 
         for run in ds_sub.runs.values:
             if run != 'Obs.':
+                
+                #Sometimes Q is empty, we'd rather see what is empty in the plot than have an error
                 if ds_sub.sel(runs=run).Q.isnull().all():
                     continue
                 
                 sim = ds_sub.sel(runs=run).Q
-
+                
                 peaks, timing_errors = peak_timing_errors(obs, sim, window=window)
 
+                #some timing errors should be nan where they aree the same as the window.
+                mask = np.abs(timing_errors) == window
+                timing_errors[mask] = np.nan
+                peaks[mask] = np.nan
+                
                 # print(f'run, peaks, timing_errors: {run}, \n {peaks}, \n  {timing_errors}')
                 # Check if peaks is empty
                 if len(peaks) > 0 and not np.isnan(peaks).all() and not np.isnan(timing_errors).all():

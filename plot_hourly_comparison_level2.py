@@ -20,22 +20,20 @@ from hydro_plotting.peak_timing import plot_peaks_ts, peak_timing_for_runs
 
 #%%
 # ======================= Set up the working directory =======================
-working_folder = r"p:\11209265-grade2023\wflow\wflow_meuse_julia\wflow_meuse_per_catchment_N"
+working_folder = r"p:\11209265-grade2023\wflow\wflow_meuse_julia\wflow_meuse_per_catchment_N\fl1d_level2"
 sys.path.append(working_folder)
 
 # ======================= Define the runs and load model runs =======================
-# snippets = ['.', 'base']
-model_dirs = [r"p:\11209265-grade2023\wflow\wflow_meuse_julia\compare_fl1d_interreg\fl1d_lakes",
-            r"P:\11209265-grade2023\wflow\wflow_meuse_julia\compare_fl1d_interreg\interreg",
-            r"P:\11209265-grade2023\wflow\wflow_meuse_julia\wflow_meuse_per_catchment_N\fl1d_level1\base",
-            r"P:\11209265-grade2023\wflow\wflow_meuse_julia\wflow_meuse_per_catchment_N\fl1d_level2\base",]
-            # r"P:\11209265-grade2023\wflow\wflow_meuse_julia\wflow_meuse_per_catchment_N\fl1d_level3\base",]
-            # r"P:\11209265-grade2023\wflow\wflow_meuse_julia\wflow_meuse_per_catchment_N\fl1d_level4\base",]
-            # r"P:\11209265-grade2023\wflow\wflow_meuse_julia\wflow_meuse_per_catchment_N\fl1d_level5\base",]
+snippets = ['.', 'base']
+model_dirs = find_model_dirs(working_folder, snippets)
+
+
+[model_dirs.append(folder) for folder in [r"p:\11209265-grade2023\wflow\wflow_meuse_julia\compare_fl1d_interreg\fl1d_lakes",
+                                          r"P:\11209265-grade2023\wflow\wflow_meuse_julia\compare_fl1d_interreg\interreg"]]
 
 toml_files = find_toml_files(model_dirs)  #will be useful when we can use the Wflowmodel to extract geoms and results
 
-run_keys = ['fl1d_lakes', 'interreg', 'level1', 'level2']#'level3', 'level4', 'level5']
+run_keys = [run.split('\\')[-1].split('_')[-1] for run in model_dirs]
 
 # ======================= Create the FR-BE-NL combined dataset =======================  
 ds, df_gaugetoplot = create_combined_hourly_dataset_FRBENL(working_folder, 
@@ -43,7 +41,7 @@ ds, df_gaugetoplot = create_combined_hourly_dataset_FRBENL(working_folder,
                                                            model_dirs, 
                                                            output='output.csv',
                                                            toml_files= toml_files, 
-                                                           overwrite=True)
+                                                           overwrite=False)
 
 print(f'Loaded dataset with dimensions: {ds.dims}')
 
