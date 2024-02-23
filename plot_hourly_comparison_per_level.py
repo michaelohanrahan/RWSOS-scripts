@@ -28,8 +28,8 @@ sys.path.append(working_folder)
 model_dirs = [r"p:\11209265-grade2023\wflow\wflow_meuse_julia\compare_fl1d_interreg\fl1d_lakes",
             r"P:\11209265-grade2023\wflow\wflow_meuse_julia\compare_fl1d_interreg\interreg",
             r"P:\11209265-grade2023\wflow\wflow_meuse_julia\wflow_meuse_per_catchment_N\fl1d_level1\base",
-            r"P:\11209265-grade2023\wflow\wflow_meuse_julia\wflow_meuse_per_catchment_N\fl1d_level2\base",]
-            # r"P:\11209265-grade2023\wflow\wflow_meuse_julia\wflow_meuse_per_catchment_N\fl1d_level3\base",]
+            r"P:\11209265-grade2023\wflow\wflow_meuse_julia\wflow_meuse_per_catchment_N\fl1d_level2\base",
+            r"P:\11209265-grade2023\wflow\wflow_meuse_julia\wflow_meuse_per_catchment_N\fl1d_level3\base",]
             # r"P:\11209265-grade2023\wflow\wflow_meuse_julia\wflow_meuse_per_catchment_N\fl1d_level4\base",]
             # r"P:\11209265-grade2023\wflow\wflow_meuse_julia\wflow_meuse_per_catchment_N\fl1d_level5\base",]
 
@@ -43,7 +43,7 @@ ds, df_gaugetoplot = create_combined_hourly_dataset_FRBENL(working_folder,
                                                            model_dirs, 
                                                            output='output.csv',
                                                            toml_files= toml_files, 
-                                                           overwrite=False)
+                                                           overwrite=True)
 
 print(f'Loaded dataset with dimensions: {ds.dims}')
 
@@ -112,3 +112,4 @@ peak_timing_for_runs(ds,
                      plotfig=True, 
                      savefig=True)
 # %%
+
