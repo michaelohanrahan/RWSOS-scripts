@@ -31,6 +31,7 @@ def find_model_dirs(path, snippets):
         break  # Exit after processing the first level to avoid going deeper
     return result
 
+#==============================================================================	
 def find_toml_files(filtered_dirs):
     """
     Find .toml files in the given directories.
@@ -51,6 +52,7 @@ def find_toml_files(filtered_dirs):
 
     return toml_files
 
+#==============================================================================
 
 def find_staticgeoms(working_dir:str=None, 
                      model_snippet:str =None, 
@@ -117,14 +119,13 @@ def find_outputs(filtered_dirs, filetype=None, filename=None):
                 
     return result
 
+
 # ======================= Create the FR-BE-NL combined dataset =======================
 def create_combined_hourly_dataset_FRBENL(working_folder:str,
                                           run_keys:list,
                                           model_dirs:list, 
-                                          output:str, 
-                                          toml_files:list, 
-                                          overwrite:bool=False,
-                                          model_snippet:str=None):
+                                          output:str,  
+                                          overwrite:bool=False,):
     '''
     This function creates a combined dataset of hourly model runs and observations for France, Belgium and Netherlands.
     The dataset is saved as a netCDF file in the working_folder.
@@ -175,48 +176,7 @@ def create_combined_hourly_dataset_FRBENL(working_folder:str,
         else:
             output_files = find_outputs(model_dirs, filename=output)
         
-        print(output_files)
-        
-        # # try:
-        # #     if os.path.exists(os.path.join(working_folder, 'staticgeoms')):
-        # #         folder_staticgeoms = os.path.join(working_folder, 'staticgeoms')
-        # #     else:
-        # #         folder_staticgeoms = os.path.join(model_dirs[0], 'staticgeoms')  # folder that contain staticgeoms
-        # # except Exception as e:
-        # #     print('Could not find staticgeoms folder')
-        # #     return None
-        # folder_staticgeoms = r"P:\11209265-grade2023\wflow\wflow_meuse_julia\wflow_meuse_202303\staticgeoms"
-        
-        # # folder_staticgeoms = find_staticgeoms(working_dir=working_folder)
-        
-        # #TODO: should be do-able with hydromt and staticgeoms, Joost says there's no perfect approach here tbh, would have to do runs that are not modifying toml in memory. 
-        # gauges_maps = []
-        
-        # for file in os.listdir(folder_staticgeoms):
-        #     if 'gauges' in file:
-        #         gauges_maps.append(os.path.splitext(file)[0])
-        
-        # # mod = WflowModel(model_dirs[0], config_fn=toml_files[0], mode="r")
-        # mod = WflowModel(root=r"P:\11209265-grade2023\wflow\wflow_meuse_julia\wflow_meuse_202303\run_default", mode='r', config_fn='wflow_sbm_eobs.toml')
-
-        # mod_stations = {}
-        # for gauge_map in gauges_maps:
-            
-        #     if 'wflow_id' in mod.staticgeoms[gauge_map].columns:
-        #         mod_stations[f'{gauge_map}'] = mod.staticgeoms[gauge_map]["wflow_id"].values
-        #         print(f'{gauge_map} : added')
-                
-        #     elif gauge_map == "gauges":
-        #         mod_stations[f'{gauge_map}'] = np.array([2015], dtype=np.int64)  # Discharge outlet: Rhine 709, Meuse 2015
-        #         print(f'{gauge_map} : added manually as 2015')
-            
-        #     else:
-        #         print(f'{gauge_map} : no wflow_id')
-        
-        # print('\nmod_stations:\n', mod_stations)
-        
         # ====================== load the model results into memory
-        
         print('\nloading model runs...\n')
         
         print(output_files)
@@ -242,7 +202,6 @@ def create_combined_hourly_dataset_FRBENL(working_folder:str,
 
 
         # ======================= create xarray dataset to store modeled and obs data =======================
-        # Convert time values from nc files to pandas Timestamp objects
         # Convert time values from nc files to pandas Timestamp objects
         model_runs_time_values = [pd.to_datetime(model_runs[key].index) for key in model_runs.keys()]
         obs_time_values = [pd.to_datetime(obs_dict[key].time.values) for key in obs_dict.keys()]
