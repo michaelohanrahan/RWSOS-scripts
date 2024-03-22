@@ -147,10 +147,10 @@ def create_combined_hourly_dataset_FRBENL(working_folder:str,
     
     # ======================= Load stations/gauges to plot =======================
     # load csv that contains stations/gauges info that we want to plot
-    fn_GaugeToPlot = 'wflow_id_to_plot.csv'
-    
-    df_GaugeToPlot = pd.read_csv(os.path.join(working_folder, fn_GaugeToPlot))
-    
+    fn_gaugetoplot = 'wflow_id_add_HBV.csv'
+    #currently 
+    df_gaugetoplot = pd.read_csv(os.path.join(working_folder, fn_gaugetoplot))
+
     if not overwrite and os.path.exists(fn_ds):
         print(f'obs and model runs already combined in {fn_ds}')
         print('overwrite is false')
@@ -158,8 +158,8 @@ def create_combined_hourly_dataset_FRBENL(working_folder:str,
         
         ds = xr.open_dataset(fn_ds)
         
-        return ds, df_GaugeToPlot
-    
+        return ds, df_gaugetoplot
+
     elif overwrite or not os.path.exists(fn_ds):
         # try:
                         
@@ -169,7 +169,7 @@ def create_combined_hourly_dataset_FRBENL(working_folder:str,
         else:
             print('combined dataset does not exist, creating...')
         os.makedirs(os.path.join(working_folder, '_output'), exist_ok=True)
-    
+
         #find the output files
         if output in ['csv', 'nc']:
             output_files = find_outputs(model_dirs, filetype=output)
@@ -184,11 +184,30 @@ def create_combined_hourly_dataset_FRBENL(working_folder:str,
         model_runs = {}
         
         total_len = len(run_keys)
+        
         for n, (run, result) in enumerate(zip(run_keys, output_files), 1):
             model_runs[run] = pd.read_csv(result, parse_dates=True, index_col=0)
             print(f'from time: {model_runs[run].index[0]} to {model_runs[run].index[-1]}')
             print(f"Progress: {n}/{total_len} loaded ({run}, len: {len(model_runs[run])})")
-        
+            
+        #==================== Load the HBV data =======================
+        #weird indexing but we have the link already from the new add HBV
+        hbv_sdf = pd.read_excel(r"P:\11209265-grade2023\wflow\wflow_meuse_julia\HBV\HBV_60min_stations_2004-2016.xlsx", index_col=0, parse_dates=True, skiprows=[0,1,2,4,5])
+
+        hbv_cdf = pd.read_excel(r"P:\11209265-grade2023\wflow\wflow_meuse_julia\HBV\HBV_60min_Centroids_2004-2016.xlsx", index_col=0, parse_dates=True, skiprows=[0,1,2,4,5])
+
+        hbv_dict = {}
+
+        hbv_cat = pd.concat([hbv_sdf, hbv_cdf], axis=1)
+
+        HBV_IDs = df_gaugetoplot[['wflow_id', 'HBV_ID']].replace('0', np.nan)
+        HBV_IDs = HBV_IDs.dropna()
+                                    
+        for n, (index, row) in enumerate(HBV_IDs.iterrows()):
+            gauge = row['wflow_id']
+            ids = row['HBV_ID']
+            hbv_dict[f'HBV_{gauge}'] = hbv_cat[ids]
+
         # ======================= Load observation/measurement data =======================
         # load observation/measurement data from France, Belgium and Netherlands in a dictionary
         fn_France = R'p:\11209265-grade2023\wflow\wflow_meuse_julia\measurements\FR-Hydro-hourly-2005_2022.nc'
@@ -228,10 +247,10 @@ def create_combined_hourly_dataset_FRBENL(working_folder:str,
 
         #======================= create the combined dataset =======================
         # get the wflow_id to plot
-        wflow_id_to_plot = [*df_GaugeToPlot.wflow_id.values]
+        wflow_id_to_plot = [*df_gaugetoplot.wflow_id.values]
 
         # get the runs name
-        runs =['Obs.', *list(model_runs.keys())]
+        runs =['Obs.','HBV', *list(model_runs.keys())]
 
         # variables
         variables = ['Q']
@@ -248,64 +267,83 @@ def create_combined_hourly_dataset_FRBENL(working_folder:str,
                         'wflow_id': wflow_id_to_plot,
                         'runs': runs})  # note: add obs
         
-        print('\nEmpty Dataset:\n', ds)
+        # print('\nEmpty Dataset:\n', ds)
         
         ds = ds * np.nan
 
         # fill in obs data
         for wflow_id in wflow_id_to_plot:
             
-            country = df_GaugeToPlot.loc[df_GaugeToPlot['wflow_id']==wflow_id,'country'].values[0]
+            country = df_gaugetoplot.loc[df_gaugetoplot['wflow_id']==wflow_id,'country'].values[0]
             
             if country=='France':
                 # intersect the time ranges
-                print(f'obs_dict[f\'{country}\'][\'Q\'].time.values: {obs_dict[f"{country}"]["Q"].time.values.shape}')
-                print(f'obs_dict[f\'{country}\'][\'Q\'].time.values.min: {obs_dict[f"{country}"]["Q"].time.values.min()}')
-                print(f'obs_dict[f\'{country}\'][\'Q\'].time.values.max: {obs_dict[f"{country}"]["Q"].time.values.max()}')
+                # print(f'obs_dict[f\'{country}\'][\'Q\'].time.values: {obs_dict[f"{country}"]["Q"].time.values.shape}')
+                # print(f'obs_dict[f\'{country}\'][\'Q\'].time.values.min: {obs_dict[f"{country}"]["Q"].time.values.min()}')
+                # print(f'obs_dict[f\'{country}\'][\'Q\'].time.values.max: {obs_dict[f"{country}"]["Q"].time.values.max()}')
                 
                 time_intersection = np.intersect1d(obs_dict[f'{country}']['Q'].time.values, rng)
-                print(f'time_intersection: {time_intersection.shape}')
                 
                 ds['Q'].loc[{'runs':'Obs.', 'wflow_id':wflow_id}] = obs_dict[f'{country}']['Q'].sel({'wflow_id':wflow_id, 'time':time_intersection}).values
-            
+                
+                try:
+                    ds['Q'].loc[{'runs':'HBV', 'wflow_id':wflow_id}] = hbv_dict[f'HBV_{wflow_id}'].reindex(ds['Q'].coords['time'])
+                    # ic(ds['Q'].loc[{'runs':'HBV', 'wflow_id':wflow_id}])
+                    
+                except Exception as e:
+                    print(e)
+                    None
+                
             elif country=='Belgium':
                 # intersect the time ranges
                 time_intersection = np.intersect1d(obs_dict[f'{country}']['Qobs_m3s'].time.values, rng)
                 ds['Q'].loc[{'runs':'Obs.', 'wflow_id':wflow_id}] = obs_dict[f'{country}']['Qobs_m3s'].sel({'catchments':wflow_id, 'time':time_intersection}).values
                 
+                try:
+                    ds['Q'].loc[{'runs':'HBV', 'wflow_id':wflow_id}] = hbv_dict[f'HBV_{wflow_id}'].reindex(ds['Q'].coords['time'])
+                    # ic(ds['Q'].loc[{'runs':'HBV', 'wflow_id':wflow_id}])
+                    
+                except Exception as e:
+                    print(e)
+                    None
+                
             else:
                 time_intersection = np.intersect1d(obs_dict[f'{country}']['Q'].time.values, rng)
                 ds['Q'].loc[{'runs':'Obs.', 'wflow_id':wflow_id}] = obs_dict[f'{country}']['Q'].sel({'wflow_id':wflow_id, 'time':time_intersection}).values
-        
+                try:
+                    ds['Q'].loc[{'runs':'HBV', 'wflow_id':wflow_id}] = hbv_dict[f'HBV_{wflow_id}'].reindex(ds['Q'].coords['time'])
+                    # ic(ds['Q'].loc[{'runs':'HBV', 'wflow_id':wflow_id}])
+                    
+                except Exception as e:
+                    print(f'Could not find HBV_{wflow_id}')
+                    # print(e)
+                    
         print('\nmodel_runs:\n', model_runs)
         print('\nmodel_runs.keys():\n', model_runs.keys())
         print('\n Dataset:\n', ds)
         
         # fill in modeled results
         for run, item in model_runs.items():
-            print(list(item.columns))
+            # print(list(item.columns))
             
             for wflow_id in wflow_id_to_plot:
                 try:
                     col_name = f'Q_{wflow_id}'  # column name of this id in model results (from Qall)
-                    
                     item_reindexed = item.reindex(rng)
-                    
                     ds['Q'].loc[{'runs': run, 'wflow_id': wflow_id}] = item_reindexed.loc[:, col_name]
                 
                 except Exception as e:
-                    print(f'Could not find: {run} {wflow_id} {col_name}')
+                    # print(f'Could not find: {run} {wflow_id} {col_name}')
                         
                     try:
                         col_name = f'Q_locs_{wflow_id}'  # column name of this id in model results (from Qall)
-
                         item_reindexed = item.reindex(rng)
-                        
                         ds['Q'].loc[{'runs': run, 'wflow_id': wflow_id}] = item_reindexed.loc[:, col_name]
                     
                     except Exception as e:
-                        print(f'Could not find: {run} {wflow_id} {col_name}')
-                        print(e)
+                        # print(f'CoSuld not find: {run} {wflow_id} {col_name}')
+                        # print(e)
+                        None
                     
         # except Exception as e:
         #     print(col_name)
@@ -315,6 +353,6 @@ def create_combined_hourly_dataset_FRBENL(working_folder:str,
                         
         # save the combined dataset
         ds.to_netcdf(fn_ds)
-        
+
         print(f'saved combined observations and model runs to\n{fn_ds}')
-        return ds, df_GaugeToPlot
+        return ds, df_gaugetoplot

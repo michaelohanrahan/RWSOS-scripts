@@ -16,37 +16,34 @@ from file_methods.postprocess import find_model_dirs, find_toml_files, find_outp
 # from metrics.peak_metrics import peak_timing_errors
 from metrics.run_peak_metrics import store_peak_info
 from hydro_plotting.peak_timing import plot_peaks_ts, peak_timing_for_runs
-from icecream import ic
 
 
 #%%
 # ======================= Set up the working directory =======================
-working_folder = r"p:\11209265-grade2023\wflow\wflow_meuse_julia\wflow_meuse_per_catchment_N"
+working_folder = r"p:\11209265-grade2023\wflow\wflow_meuse_julia\wflow_meuse_per_catchment_N\fl1d_level2"
 sys.path.append(working_folder)
 
 # ======================= Define the runs and load model runs =======================
-# snippets = ['.', 'base']
-model_dirs = [r"p:\11209265-grade2023\wflow\wflow_meuse_julia\compare_fl1d_interreg\fl1d_lakes",
-            r"P:\11209265-grade2023\wflow\wflow_meuse_julia\compare_fl1d_interreg\interreg",
-            r"P:\11209265-grade2023\wflow\wflow_meuse_julia\wflow_meuse_per_catchment_N\fl1d_level1\base",
-            r"P:\11209265-grade2023\wflow\wflow_meuse_julia\wflow_meuse_per_catchment_N\fl1d_level2\base",
-            r"P:\11209265-grade2023\wflow\wflow_meuse_julia\wflow_meuse_per_catchment_N\fl1d_level3\base",]
-            # r"P:\11209265-grade2023\wflow\wflow_meuse_julia\wflow_meuse_per_catchment_N\fl1d_level4\base",]
-            # r"P:\11209265-grade2023\wflow\wflow_meuse_julia\wflow_meuse_per_catchment_N\fl1d_level5\base",]
+snippets = ['.', 'base']
+model_dirs = find_model_dirs(working_folder, snippets)
+
+
+[model_dirs.append(folder) for folder in [r"p:\11209265-grade2023\wflow\wflow_meuse_julia\compare_fl1d_interreg\fl1d_lakes",
+                                          r"P:\11209265-grade2023\wflow\wflow_meuse_julia\compare_fl1d_interreg\interreg"]]
 
 toml_files = find_toml_files(model_dirs)  #will be useful when we can use the Wflowmodel to extract geoms and results
 
-run_keys = ['fl1d_lakes', 'interreg', 'level1', 'level2','level3']# 'level4', 'level5']
+run_keys = [run.split('\\')[-1].split('_')[-1] for run in model_dirs]
 
 # ======================= Create the FR-BE-NL combined dataset =======================  
 ds, df_gaugetoplot = create_combined_hourly_dataset_FRBENL(working_folder, 
                                                            run_keys, 
                                                            model_dirs, 
                                                            output='output.csv',
+                                                           toml_files= toml_files, 
                                                            overwrite=False)
 
 print(f'Loaded dataset with dimensions: {ds.dims}')
-run_keys = ['HBV', *run_keys]
 
 #%%
 #======================== Create Plotting Constants =======================
@@ -73,9 +70,7 @@ start = datetime.strptime('2015-01-01', '%Y-%m-%d')
 
 end = datetime.strptime('2018-02-21', '%Y-%m-%d')
 
-print('Calculating peak timing errors...')
 peak_dict = store_peak_info(ds.sel(time=slice(start,end)), 'wflow_id', 72)
-print('Peak timing errors calculated.')
 
 #%%
 # # ======================= Plot Peak Timing Hydrograph =======================
@@ -83,8 +78,8 @@ print('Peak timing errors calculated.')
 # dict is indexed by (key: station id), then by (key: run name), then a tuple of (0: obs indices, 1:sim indices and 2:timing errors)
 Folder_plots = os.path.join(working_folder,'_figures')  # folder to save plots
 
-print('Plotting peak timing hydrographs...')
-print('runs: ', run_keys)
+print(f'len ds time: {len(ds.time)}')
+
 plot_peaks_ts(ds, 
               df_gaugetoplot,
               start, end,
@@ -93,7 +88,7 @@ plot_peaks_ts(ds,
               peak_dict=peak_dict,
               savefig=True)
 
-#//////////////////////////////////////////////////////////////////////
+
 #%% 
 # ======================= peak timing errors =======================
 # set figure fonts
@@ -115,4 +110,3 @@ peak_timing_for_runs(ds,
                      plotfig=True, 
                      savefig=True)
 # %%
-

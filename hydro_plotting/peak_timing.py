@@ -91,37 +91,31 @@ def plot_peaks_ts(ds:xr.Dataset,
                 ))
                         
             else:
-                label = f"{run}: {np.mean(peak_dict[station_id][run]['timing_errors']):.2f} +/- {np.std(peak_dict[station_id][run]['timing_errors']):.2f}h" + "\nNSE:" + f"{nse:.3f}" + " NSE<sub>log</sub>:" + f"{nse_log:.3f}"
-                
-                fig.add_trace(go.Scatter(
-                    x=sim.time.values,
-                    y=sim.Q.values,
-                    mode='lines',
-                    name=label,
-                    line=dict(color=color_dict[str(run)])
-                ))
-                
-                sim_peaks = peak_dict[station_id][run]['peaks']
+                try:
+                    label = f"{run}: {np.mean(peak_dict[station_id][run]['timing_errors']):.2f} +/- {np.std(peak_dict[station_id][run]['timing_errors']):.2f}h" + "\nNSE:" + f"{nse:.3f}" + " NSE<sub>log</sub>:" + f"{nse_log:.3f}"
+                    
+                    fig.add_trace(go.Scatter(
+                        x=sim.time.values,
+                        y=sim.Q.values,
+                        mode='lines',
+                        name=label,
+                        line=dict(color=color_dict[str(run)])
+                    ))
+                    
+                    sim_peaks = peak_dict[station_id][run]['peaks']
 
-                # # Convert 'sim_peaks' to a list of datetime-like strings
-                # sim_peaks = sim_peaks.astype(str).tolist()
-
-                # # Convert 'sim.time' to a pandas Series for easier handling
-                # sim_time_series = pd.Series(sim.time.values.astype(str))
-
-                # Find the peak times that are not in the time series
-                # missing_peaks = [peak for peak in sim_peaks if peak not in sim_time_series.values]
-
-                # print(f'{len(missing_peaks)}/{len(sim_peaks)} missing peaks from series')
-
-
-                fig.add_trace(go.Scatter(
-                    x=sim.time.sel(time=sim_peaks, method='nearest').values,
-                    y=sim.Q.sel(time=sim_peaks, method='nearest').values,
-                    mode='markers',
-                    name='Sim. Peaks',
-                    marker=dict(color=color_dict[str(run)], size=8)
-                ))
+                    fig.add_trace(go.Scatter(
+                        x=sim.time.sel(time=sim_peaks, method='nearest').values,
+                        y=sim.Q.sel(time=sim_peaks, method='nearest').values,
+                        mode='markers',
+                        name='Sim. Peaks',
+                        marker=dict(color=color_dict[str(run)], size=8)
+                    ))
+                except Exception as e:
+                    print('Error in plotting peak timing for run, station:', run)
+                    print(e)
+                    traceback.print_exc()
+                    None
                     
         fig.update_layout(
             title=f'{station_name} (id: {station_id})',
@@ -142,12 +136,6 @@ def plot_peaks_ts(ds:xr.Dataset,
                 print(f'Failed to save {filepath}')
         else:
             fig.show()
-
-        # except Exception as e:
-        #     print('\nfail peak plots, station:', station_id, '\n')
-        #     print(e)
-        #     traceback.print_exc()
-            
         
     return None
 
