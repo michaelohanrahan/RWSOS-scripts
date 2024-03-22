@@ -9,6 +9,7 @@ from metrics.objective_fn import calculate_nse_and_log_nse
 import traceback
 import matplotlib.pyplot as plt
 from datetime import datetime
+from icecream import ic
 
 
 def plot_peaks_ts(ds:xr.Dataset,  
@@ -155,7 +156,7 @@ def peak_timing_for_runs(ds:xr.Dataset,
     
     for i, station_id in enumerate(ds.wflow_id.values):
         # try:
-        station_name = df_GaugeToPlot.loc[df_GaugeToPlot['wflow_id']==station_id, 'station_name'].values[0]
+        station_name = df_GaugeToPlot.loc[df_GaugeToPlot['wflow_id']==station_id, 'location'].values[0]
         
         # try:
         # select a station

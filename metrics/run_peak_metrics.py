@@ -1,6 +1,7 @@
 from metrics.peak_metrics import peak_timing_errors
 import numpy as np
 import pandas as pd
+from icecream import ic
 
 
 
@@ -42,8 +43,6 @@ def store_peak_info(ds, id_key, window):
                 
                 peaks, timing_errors = peak_timing_errors(obs, sim, window=window)
 
-                
-                
                 # print(f'run, peaks, timing_errors: {run}, \n {peaks}, \n  {timing_errors}')
                 # Check if peaks is empty
                 if len(peaks) > 0 and not np.isnan(peaks).all() and not np.isnan(timing_errors).all():
