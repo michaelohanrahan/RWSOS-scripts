@@ -36,7 +36,7 @@ def plot_peaks_ts(ds:xr.Dataset,
     
     for station_id in ds[id_key].values:
         # try:
-        station_name = df_GaugeToPlot.loc[df_GaugeToPlot[id_key]==station_id, 'station_name'].values[0]
+        station_name = df_GaugeToPlot.loc[df_GaugeToPlot[id_key]==station_id, 'location'].values[0]
 
         print('Attempt html peak timing plotting for (station_name, station_id): ', (station_name, station_id))
 
@@ -64,15 +64,13 @@ def plot_peaks_ts(ds:xr.Dataset,
                 
             else:
                 nse, nse_log = np.nan, np.nan
-                print('nse, nse_log = np.nan, np.nan')    
-                print(f'len(obs_filtered) {len(obs_filtered)} != len(sim_filtered) {len(sim_filtered)}')
+                # print('nse, nse_log = np.nan, np.nan')    
+                # print(f'len(obs_filtered) {len(obs_filtered)} != len(sim_filtered) {len(sim_filtered)}')
             
             if run == 'Obs.':
                 label = f'{run}'
                 
                 obs_peaks = peak_dict[station_id][run]['peaks']
-                print('min peak datetime obs indexes: ', obs_peaks.min())
-                print('max peak datetime obs indexes: ', obs_peaks.max())
                 
                 fig.add_trace(go.Scatter(
                     x=obs.time.values,

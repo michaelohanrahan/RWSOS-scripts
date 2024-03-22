@@ -17,6 +17,7 @@ from file_methods.postprocess import find_toml_files, create_combined_hourly_dat
 # from metrics.peak_metrics import peak_timing_errors
 from metrics.run_peak_metrics import store_peak_info
 from hydro_plotting.peak_timing import plot_peaks_ts, peak_timing_for_runs
+from hydro_plotting import hydro_signatures
 from icecream import ic
 
 
@@ -126,4 +127,4 @@ peak_timing_for_runs(ds,
 
 #//////////////////////////////////////////////////////////////////////
 # %%
-
+hydro_signatures()
