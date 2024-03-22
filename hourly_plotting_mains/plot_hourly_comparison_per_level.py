@@ -11,8 +11,9 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 import sys
 import os
+
 # from hydro_plotting import hydro_signatures
-from file_methods.postprocess import find_model_dirs, find_toml_files, find_outputs, create_combined_hourly_dataset_FRBENL
+from file_methods.postprocess import find_toml_files, create_combined_hourly_dataset_FRBENL
 # from metrics.peak_metrics import peak_timing_errors
 from metrics.run_peak_metrics import store_peak_info
 from hydro_plotting.peak_timing import plot_peaks_ts, peak_timing_for_runs
@@ -77,14 +78,19 @@ print('Calculating peak timing errors...')
 peak_dict = store_peak_info(ds.sel(time=slice(start,end)), 'wflow_id', 72)
 print('Peak timing errors calculated.')
 
-#%%
-# # ======================= Plot Peak Timing Hydrograph =======================
-# plot and store peak timing information in a dictionary ''peak timing info'
-# dict is indexed by (key: station id), then by (key: run name), then a tuple of (0: obs indices, 1:sim indices and 2:timing errors)
 Folder_plots = os.path.join(working_folder,'_figures')  # folder to save plots
+print('Folder for plots: ', Folder_plots)
+#%% 
+# # ======================= Plot Peak Timing Hydrograph ===============
+#\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# plot and store peak timing information in a dictionary ''peak timing info'
+# dict is indexed by (key: station id), then by (key: run name), 
+# then a tuple of (0: obs indices, 1:sim indices and 2:timing errors)
+
 
 print('Plotting peak timing hydrographs...')
 print('runs: ', run_keys)
+
 plot_peaks_ts(ds, 
               df_gaugetoplot,
               start, end,
@@ -96,6 +102,8 @@ plot_peaks_ts(ds,
 #//////////////////////////////////////////////////////////////////////
 #%% 
 # ======================= peak timing errors =======================
+#\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+    
 # set figure fonts
 SMALL_SIZE = 12
 MEDIUM_SIZE = 14
@@ -114,5 +122,8 @@ peak_timing_for_runs(ds,
                      peak_dict=peak_dict,
                      plotfig=True, 
                      savefig=True)
+
+
+#//////////////////////////////////////////////////////////////////////
 # %%
 
