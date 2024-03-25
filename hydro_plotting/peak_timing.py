@@ -168,7 +168,7 @@ def peak_timing_for_runs(ds:xr.Dataset,
             
             peak_dict_sid = peak_dict[station_id]
             keys = list(peak_dict_sid.keys())
-            markers = ['o', 's', '^', 'D', 'x', '*']
+            markers = ['o', 's', '^', 'D', 'x', '*', '+', 'v', '<', '>']
             
             fig = plt.figure(figsize=(15, 10))  # Wider figure to accommodate side-by-side bar plots
             
@@ -184,9 +184,9 @@ def peak_timing_for_runs(ds:xr.Dataset,
                     #     print(f"Data contains non-finite values: {data}")
 
             ax1.legend()
-            ax1.set_xlabel('Qobs (m\u00b3 s\u207b\u00b9)')
+            ax1.set_xlabel('Observed Q ($m s^{-1}$)')
             ax1.axhline(0, color='black', alpha=0.5, linestyle='--')
-            ax1.set_ylabel('Timing Error (h)')
+            ax1.set_ylabel('Timing Error ($h$)')
             ax1.set_title(f'Meuse at {station_name} (id: {station_id}) - Scatter plot of Qobs vs timing error')
 
             ax2 = plt.subplot2grid((2, 2), (1, 0))  # First plot in second row
@@ -199,8 +199,7 @@ def peak_timing_for_runs(ds:xr.Dataset,
             ax2.set_xticklabels(keys, rotation=15)
 
             for i, (run, data) in enumerate(peak_dict_sid.items()):
-                # if run != 'Obs.':
-                    
+
                 data = data['timing_errors']
                 
                 if run == 'Obs.':
@@ -212,29 +211,27 @@ def peak_timing_for_runs(ds:xr.Dataset,
                 
                 means.append(mean)
                 
-                print('run,mean', (run, mean))
-                
                 # Create a boxplot
                 bplot = ax2.boxplot(data, positions=[i+1], patch_artist=True, notch=True, vert=1, showfliers=False)  # Set showfliers=False to remove outliers
 
             # Draw a line between the means
             ax2.plot(range(1, len(means) + 1), means, color='r', linestyle='--')
+            ax2.grid(axis='y')
 
             # Set colors for each box
             for patch, color in zip(bplot['boxes'], colors):
                 patch.set_facecolor(color)
 
-            [ax2.text(i+1, mean, round(mean, 1), ha='center', va='bottom') for i, mean in enumerate(means)]
+            [ax2.text(i+1, mean, round(mean, 1), ha='center', va='bottom', color='white', fontsize=13) for i, mean in enumerate(means)]
+            [ax2.text(i+1, mean, round(mean, 1), ha='center', va='bottom', fontsize=11) for i, mean in enumerate(means)]
 
-            print(len(ax2.get_xticks()))
-            print(len(keys))
-            
             # Set x-axis labels
             # ax2.set_xticklabels(keys, rotation=15)
                 
             ax2.set_xlabel('Run')
             ax2.set_ylabel('Peak Timing (h)')
             ax2.set_title('Peak Timing Per Run')
+            ax2.axhline(0, color='red', alpha=0.3, linestyle='--')
 
             # Mean absolute percentage peak error bar plot
             ax3 = plt.subplot2grid((2, 2), (1, 1))  # Second plot in second row
@@ -272,7 +269,7 @@ def peak_timing_for_runs(ds:xr.Dataset,
                 os.makedirs(timeseries_folder, exist_ok=True)
                 filename = f'PeakTimingMetrics_{station_name}_{station_id}_{start.year}{start.month}{start.day}-{end.year}{end.month}{end.day}.png'
                 plt.savefig(os.path.join(timeseries_folder, filename), dpi=300)
-                
+            break
             # if i == 0:
             #     break
 

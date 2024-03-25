@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import os
 import scipy
 import xarray as xr
+import icecream as ic
 
 def rsquared(x, y):
     """ Return R^2 where x and y are array-like."""
@@ -19,20 +20,42 @@ def rsquared(x, y):
     return r_value**2
 
 def plot_signatures(
-    dsq, labels, colors,
-    Folder_out, station_name, station_id, lw = 0.8, fs = 8,
+    dsq, 
+    colors,
+    Folder_out, 
+    station_name, 
+    station_id,
+    freq='D', 
+    lw = 0.8, 
+    fs = 8,
     save = False):
+    
+    """
+    Plot hydrological signatures for a given dataset.
 
-    if xr.infer_freq(dsq.time) == "D":
+    Parameters:
+    - dsq (xarray.Dataset): The dataset containing the hydrological data.
+    - colors (dict): Dictionary of colors for each run.
+    - Folder_out (str): Output folder path.
+    - station_name (str): Name of the station.
+    - station_id (str): ID of the station.
+    - lw (float, optional): Line width for the plots. Default is 0.8.
+    - fs (int, optional): Font size for the plots. Default is 8.
+    - save (bool, optional): Whether to save the plots. Default is False.
+    """
+
+    labels = dsq.runs.values
+    
+    if freq == "D":
         window = 7
         
-    elif xr.infer_freq(dsq.time) == "H":
+    elif freq == "H":
         window = 7*24
 
     #first calc some signatures
     dsq['metrics'] = ['KGE', 'NSE', 'NSElog', 'RMSE', 'MSE']
     dsq['performance'] = (('runs', 'metrics'), np.zeros((len(dsq.runs), len(dsq.metrics)))*np.nan)
-
+    
     # dsplot = dsq.copy(deep=True)
     dsq = dsq.sel(time=dsq.time[~dsq.Q.sel(runs="Obs.").isnull()].values)
 
@@ -67,7 +90,7 @@ def plot_signatures(
     fig.suptitle(station_name)
 
     # daily against each other axes[0]
-    for label, color in zip(labels, colors):
+    for label, color in colors.items():
         axes[0].plot(dsq['Q'].sel(runs = 'Obs.'), dsq['Q'].sel(runs = label), marker = 'o', linestyle = 'None', linewidth = lw, label = label, color = color, markersize = 3)
 
     max_y = np.round(dsq['Q'].max().values)
@@ -92,7 +115,7 @@ def plot_signatures(
 
 
     #streamflow regime axes[1]
-    for label, color in zip(labels, colors):
+    for label, color in colors.items():
         dsq['Q'].sel(runs = label).groupby('time.month').mean('time').plot(ax=axes[1], linewidth = lw, label = label, color = color)
     # dsq['Q'].sel(runs = label_01).groupby('time.month').mean('time').plot(ax=axes[1], linewidth = lw, label = label_01, color = color_01)
     dsq['Q'].sel(runs = 'Obs.').groupby('time.month').mean('time').plot(ax=axes[1], linewidth = lw, label = 'Obs.', color = 'k', linestyle = '--')
@@ -105,7 +128,7 @@ def plot_signatures(
            ncol=3, mode="expand", borderaxespad=0., fontsize = fs,)
 
     #FDC axes[2]
-    for label, color in zip(labels, colors):
+    for label, color in colors.items():
         axes[2].plot(np.arange(0, len(dsq.time))/(len(dsq.time)+1), dsq.Q.sel(runs = label).sortby(dsq.Q.sel(runs = label, ), ascending = False), color = color, linestyle = '-', linewidth = lw, label = label)
     # axes[2].plot(np.arange(0, len(dsq.time))/(len(dsq.time)+1), dsq.Q.sel(runs = label_01).sortby(dsq.Q.sel(runs = label_01, ), ascending = False), color = color_01, linestyle = '--', linewidth = lw, label = label_01)
     axes[2].plot(np.arange(0, len(dsq.time))/(len(dsq.time)+1), dsq.Q.sel(runs = 'Obs.').sortby(dsq.Q.sel(runs = 'Obs.', ), ascending = False), color = 'k', linestyle = ':', linewidth = lw, label = 'Obs.')
@@ -114,7 +137,7 @@ def plot_signatures(
 
 
     #FDClog axes[3]
-    for label, color in zip(labels, colors):
+    for label, color in colors.items():
         axes[3].plot(np.arange(0, len(dsq.time))/(len(dsq.time)+1), np.log(dsq.Q.sel(runs = label).sortby(dsq.Q.sel(runs = label, ), ascending = False)), color = color, linestyle = '-', linewidth = lw, label = label)
     # axes[3].plot(np.arange(0, len(dsq.time))/(len(dsq.time)+1), np.log(dsq.Q.sel(runs = label_01).sortby(dsq.Q.sel(runs = label_01, ), ascending = False)), color = color_01, linestyle = '--', linewidth = lw, label = label_01)
     axes[3].plot(np.arange(0, len(dsq.time))/(len(dsq.time)+1), np.log(dsq.Q.sel(runs = 'Obs.').sortby(dsq.Q.sel(runs = 'Obs.', ), ascending = False)), color = 'k', linestyle = ':', linewidth = lw, label = 'Obs.')
@@ -124,7 +147,7 @@ def plot_signatures(
 
     #max annual axes[4]
     dsq_max = dsq.sel(time = slice(f"{str(dsq['time.year'][0].values)}-09-01", f"{str(dsq['time.year'][-1].values)}-08-31")).resample(time = 'AS-Sep').max('time')
-    for label, color in zip(labels, colors):
+    for label, color in colors.items():
         axes[4].plot(dsq_max.Q.sel(runs = 'Obs.'), dsq_max.Q.sel(runs = label), color = color, marker = 'o', linestyle = 'None', linewidth = lw, label = label)
     # axes[4].plot(dsq_max.Q.sel(runs = 'Obs.'), dsq_max.Q.sel(runs = label_01), color = color_01, marker = '.', linestyle = 'None', linewidth = lw, label = label_01)
     axes[4].plot([0, max_y*1.1],[0, max_y*1.1], color = '0.5', linestyle = '--', linewidth = 1)
@@ -150,12 +173,13 @@ def plot_signatures(
     #nm7q axes[5]
     dsq_nm7q = dsq.rolling(time = window).mean().resample(time = 'A').min('time')
     max_ylow = dsq_nm7q['Q'].max().values
-    for label, color in zip(labels, colors):
+    for label, color in colors.items():
         axes[5].plot(dsq_nm7q.Q.sel(runs = 'Obs.'), dsq_nm7q.Q.sel(runs = label), color = color, marker = 'o', linestyle = 'None', linewidth = lw, label = label)
     # axes[5].plot(dsq_nm7q.Q.sel(runs = 'Obs.'), dsq_nm7q.Q.sel(runs = label_01), color = color_01, marker = '.', linestyle = 'None', linewidth = lw, label = label_01)
     axes[5].plot([0, max_ylow*1.1],[0, max_ylow*1.1], color = '0.5', linestyle = '--', linewidth = 1)
     axes[5].set_xlim([0,max_ylow*1.1])
     axes[5].set_ylim([0,max_ylow*1.1])
+    
     #R2 score add!
     text = ""
     for label in labels:
@@ -179,7 +203,7 @@ def plot_signatures(
     gumbel_p1 = -np.log(-np.log(1.-1./RP1))
     ts = [2., 5.,10.,30.] #,30.,100.,300.,1000.,3000.,10000.,30000.]
     #plot
-    for label, color in zip(labels, colors):
+    for label, color in colors.items():
         axes[6].plot(gumbel_p1, dsq_max['Q'].sel(runs = label).sortby(dsq_max['Q'].sel(runs = label)), marker = 'o', color = color, linestyle = 'None', label = label, markersize = 4)
     axes[6].plot(gumbel_p1, dsq_max['Q'].sel(runs = 'Obs.').sortby(dsq_max['Q'].sel(runs = 'Obs.')), marker = '+', color = 'k', linestyle = 'None', label = 'Obs.', markersize = 6)
     # axes[6].plot(gumbel_p1, dsq_max['Q'].sel(runs = label_01).sortby(dsq_max['Q'].sel(runs = label_01)), marker = '.', color = color_01, linestyle = 'None', label = label_01, markersize = 3)
@@ -201,7 +225,7 @@ def plot_signatures(
     gumbel_p1 = -np.log(-np.log(1.-1./RP1))
     ts = [2., 5.,10.,30.] #,30.,100.,300.,1000.,3000.,10000.,30000.]
     #plot
-    for label, color in zip(labels, colors):
+    for label, color in colors.items():
         axes[7].plot(gumbel_p1, dsq_nm7q['Q'].sel(runs = label).sortby(dsq_nm7q['Q'].sel(runs = label), ascending=False), marker = 'o', color = color, linestyle = 'None', label = label, markersize = 4)
     axes[7].plot(gumbel_p1, dsq_nm7q['Q'].sel(runs = 'Obs.').sortby(dsq_nm7q['Q'].sel(runs = 'Obs.'), ascending=False), marker = '+', color = 'k', linestyle = 'None', label = 'Obs.', markersize = 6)
     # axes[7].plot(gumbel_p1, dsq_nm7q['Q'].sel(runs = label_01).sortby(dsq_nm7q['Q'].sel(runs = label_01), ascending=False), marker = '.', color = color_01, linestyle = 'None', label = label_01, markersize = 3)
@@ -216,7 +240,7 @@ def plot_signatures(
 
     #cum axes[8]
     dsq['Q'].sel(runs = 'Obs.').cumsum('time').plot(ax=axes[8], color = 'k', linestyle = ':', linewidth = lw, label = 'Obs.')
-    for label, color in zip(labels, colors):
+    for label, color in colors.items():
         dsq['Q'].sel(runs = label).cumsum('time').plot(ax=axes[8], color = color, linestyle = '-', linewidth = lw, label = label)
     # dsq['Q'].sel(runs = label_01).cumsum('time').plot(ax=axes[8], color = color_01, linestyle = '--', linewidth = lw, label = label_01)
     axes[8].set_xlabel('')
@@ -227,15 +251,15 @@ def plot_signatures(
 #     sns.boxplot(ax=axes[9], data = df_perf, x = 'metrics', hue = 'runs', y = 'performance')
     #nse
     offsets = np.linspace(-0.25, 0.25, len(labels))
-    for label, color, offset in zip(labels, colors, offsets):
+    for (label, color), offset in zip(colors.items(), offsets):
         axes[9].plot(0.8 + offset, dsq['performance'].loc[dict(runs = label, metrics = 'NSE')], color = color, marker = 'o', linestyle = 'None', linewidth = lw, label = label)
     # axes[9].plot(1.2, dsq['performance'].loc[dict(runs = label_01, metrics = 'NSE')], color = color_01, marker = 'o', linestyle = 'None', linewidth = lw, label = label_01)
     #nselog
-    for label, color, offset in zip(labels, colors, offsets):
+    for (label, color), offset in zip(colors.items(), offsets):
         axes[9].plot(2.8 + offset, dsq['performance'].loc[dict(runs = label, metrics = 'NSElog')], color = color, marker = 'o', linestyle = 'None', linewidth = lw, label = label)
     # axes[9].plot(3.2, dsq['performance'].loc[dict(runs = label_01, metrics = 'NSElog')], color = color_01, marker = 'o', linestyle = 'None', linewidth = lw, label = label_01)
     #kge
-    for label, color, offset in zip(labels, colors, offsets):
+    for (label, color), offset in zip(colors.items(), offsets):
         axes[9].plot(4.8 + offset, dsq['performance'].loc[dict(runs = label, metrics = 'KGE')], color = color, marker = 'o', linestyle = 'None', linewidth = lw, label = label)
     # axes[9].plot(5.2, dsq['performance'].loc[dict(runs = label_01, metrics = 'KGE')], color = color_01, marker = 'o', linestyle = 'None', linewidth = lw, label = label_01)
     axes[9].set_xticks([1,3,5])
@@ -247,10 +271,12 @@ def plot_signatures(
         ax.tick_params(axis='both', labelsize = fs)
         ax.set_title('')
         ax.yaxis.offsetText.set_fontsize(fs)
-
+        
+    os.makedirs(os.path.join(Folder_out,'signatures'), exist_ok=True)
+    
     plt.tight_layout()
     if save:
-        plt.savefig(os.path.join(Folder_out, f"signatures_{station_name}_{station_id}.png"), dpi = 300)
+        plt.savefig(os.path.join(Folder_out,'signatures', f"signatures_{station_name}_{station_id}.png"), dpi = 300)
         plt.close()
 
 
