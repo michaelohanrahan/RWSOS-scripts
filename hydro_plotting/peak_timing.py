@@ -269,7 +269,7 @@ def peak_timing_for_runs(ds:xr.Dataset,
                 os.makedirs(timeseries_folder, exist_ok=True)
                 filename = f'PeakTimingMetrics_{station_name}_{station_id}_{start.year}{start.month}{start.day}-{end.year}{end.month}{end.day}.png'
                 plt.savefig(os.path.join(timeseries_folder, filename), dpi=300)
-            break
+            
             # if i == 0:
             #     break
 

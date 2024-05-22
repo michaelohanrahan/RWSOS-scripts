@@ -186,6 +186,7 @@ def create_combined_hourly_dataset_FRBENL(working_folder:str,
         total_len = len(run_keys)
         
         for n, (run, result) in enumerate(zip(run_keys, output_files), 1):
+            print(f'loading {run} from {result}')
             model_runs[run] = pd.read_csv(result, parse_dates=True, index_col=0)
             print(f'from time: {model_runs[run].index[0]} to {model_runs[run].index[-1]}')
             print(f"Progress: {n}/{total_len} loaded ({run}, len: {len(model_runs[run])})")
