@@ -283,3 +283,43 @@ def peak_timing_for_runs(ds:xr.Dataset,
         #     print(f'An error occurred for {station_name} (id: {station_id}): {str(e)}')
         #     traceback.print_exc()
 
+
+
+#======================= Peak timing distribution =======================
+
+def plot_peak_timing_distribution(run_keys,
+                                  peak_dict,
+                                  color_dict,
+                                  Folder_plots):
+
+    fig, axs = plt.subplots(5, 1, figsize=(10, 24), sharex=True)  # Create 4 subplots
+
+    bin_edges = np.arange(-70, 90, 10)
+
+    # Plot combined histogram and KDE in the top subplot
+    for var in run_keys:
+        if var != 'Obs.':
+            sns.ecdfplot(peak_dict[16][var]['timing_errors'], 
+                        ax=axs[0], label=var, color=color_dict[var],
+                        stat='percent', linewidth=2.5)
+
+    axs[0].set_title('Empirical Cumulative Distribution of Relative Timing Data', fontsize=16)
+    axs[0].set_ylabel('Percent (%)', fontsize=14)
+    axs[0].grid(True, linestyle='--', alpha=0.6)
+    axs[0].legend()
+
+    # Plot separate histograms in the subsequent subplots
+    for i, var in enumerate([v for v in run_keys if v != 'Obs.'], start=1):
+        # if i == 4:
+        #     break
+        hist, _ = np.histogram(peak_dict[16][var]['timing_errors'], bins=bin_edges)
+        axs[i].hist(bin_edges[:-1], bin_edges, weights=hist, edgecolor='black', linewidth=1.2, label=var, alpha=0.5, color=color_dict[var])
+        axs[i].set_title(f'Histogram of {var}', fontsize=16)
+        axs[i].set_xlabel('Lead <-- Value --> Lag', fontsize=14)
+        axs[i].set_ylabel('Frequency', fontsize=14)
+        axs[i].grid(True, linestyle='--', alpha=0.6)
+        axs[i].set_ylim([0, 65])
+        
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(Folder_plots, 'Peak_timing_distribution.png'), dpi=600)

@@ -16,7 +16,7 @@ sys.path.append(r'c:\git\RWSOS-scripts')
 from file_methods.postprocess import find_model_dirs, find_toml_files, find_outputs, create_combined_hourly_dataset_FRBENL
 # from metrics.peak_metrics import peak_timing_errors
 from metrics.run_peak_metrics import store_peak_info
-from hydro_plotting.peak_timing import plot_peaks_ts, peak_timing_for_runs
+from hydro_plotting.peak_timing import plot_peaks_ts, peak_timing_for_runs, plot_peak_timing_distribution
 
 
 #%%
@@ -113,34 +113,10 @@ peak_timing_for_runs(ds,
                      plotfig=True, 
                      savefig=True)
 # %%
+# ======================= Peak timing distribution =======================
+'''
+Peak timing distribution for each run
+including the cumulative distribution of the timing errors
 
-fig, axs = plt.subplots(5, 1, figsize=(10, 24), sharex=True)  # Create 4 subplots
-
-# Plot combined histogram in the top subplot
-for var in run_keys:
-    if var != 'Obs.':
-        hist, bin_edges = np.histogram(peak_dict[16][var]['timing_errors'])
-        print(hist)
-        axs[0].hist(bin_edges[:-1], bin_edges, weights=hist, edgecolor='black', linewidth=1.2, label=var, alpha=0.5, color=color_dict[var])
-
-axs[0].set_title('Combined Histogram of Relative Timing Data', fontsize=16)
-axs[0].set_xlabel('Lead <-- Value --> Lag', fontsize=14)
-axs[0].set_ylabel('Frequency', fontsize=14)
-axs[0].grid(True, linestyle='--', alpha=0.6)
-axs[0].legend()
-
-# Plot separate histograms in the subsequent subplots
-for i, var in enumerate([v for v in run_keys if v != 'Obs.'], start=1):
-    # if i == 4:
-    #     break
-    hist, bin_edges = np.histogram(peak_dict[16][var]['timing_errors'])
-    axs[i].hist(bin_edges[:-1], bin_edges, weights=hist, edgecolor='black', linewidth=1.2, label=var, alpha=0.5, color=color_dict[var])
-    axs[i].set_title(f'Histogram of {var}', fontsize=16)
-    axs[i].set_xlabel('Lead <-- Value --> Lag', fontsize=14)
-    axs[i].set_ylabel('Frequency', fontsize=14)
-    axs[i].grid(True, linestyle='--', alpha=0.6)
-    axs[i].set_ylim([0, 65])
-    
-
-plt.tight_layout()
-plt.show()
+'''
+peak_timing_distribution(run_keys, peak_dict, color_dict, Folder_plots)

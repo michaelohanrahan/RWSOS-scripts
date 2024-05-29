@@ -4,6 +4,8 @@ import pandas as pd
 import numpy as np
 import xarray as xr
 from hydromt_wflow import WflowModel
+import seaborn as sns 
+
 
 
 #======================= search for model directories and configs ===================    
