@@ -47,57 +47,6 @@ print(f'Loaded dataset with dimensions: {ds.dims}')
 
 
 #%%
-'''
-Working on smoothing the observations... I test some different kernels on the 1d series
-I like gaussian 4, and mean 5
-'''
-# limit_range = 10
-# for gauge in ds.wflow_id.values:
-#     if gauge == 16:
-#         fig, axs = plt.subplots(nrows=limit_range-2, figsize=(20,6.18*(limit_range-2)))
-#         series = ds.Q.sel(runs='Obs.', wflow_id=gauge).isel(time=slice(1, 24*365))
-#         series = pd.Series(index=series.time.values, data= series.values)
-        
-#         for i in range(2, limit_range):
-#             window_size = i
-#             sigma = i / 2.0
-            
-#             # Apply rolling mean
-#             rolling_mean = series.rolling(window=window_size).mean()
-            
-#             # Apply Gaussian filter
-#             gaussian_smooth = gaussian_filter1d(series, sigma)
-#             gaussian_smooth = pd.Series(data=gaussian_smooth, index=series.index)
-            
-#             axs[i-2].plot(series, label='original') 
-#             axs[i-2].plot(rolling_mean, label=f'rolling_mean_window={window_size}', alpha=0.6)
-#             axs[i-2].plot(gaussian_smooth, label=f'gaussian_sigma={sigma}', alpha=0.6)
-            
-#             if i % 2 != 0:
-                
-#                 # Apply Median filter
-#                 median_smooth = medfilt(series, window_size)
-#                 median_smooth = pd.Series(data=median_smooth, index=series.index)
-#                 axs[i-2].plot(median_smooth, label=f'median_window={window_size}', alpha=0.6)
-                
-#             axs[i-2].legend()
-#             axs[i-2].set_title(df_gaugetoplot[df_gaugetoplot['wflow_id']==gauge]['location'].values[0])
-            
-#         plt.tight_layout()
-#         plt.savefig(f'FiltersComparison_windowRange{limit_range}_Borgharen.png', dpi=600)
-        
-#%%
-'''
-Replace the obs at this location
-'''
-sigma = 6/2.0
-series = ds.Q.loc[{'runs': 'Obs.', 'wflow_id': 16}]
-gaussian_smooth = gaussian_filter1d(series, sigma)
-ds.Q.loc[{'runs': 'Obs.', 'wflow_id': 16}] = gaussian_smooth
-ds = ds.sel(wflow_id=[16])
-
-
-#%%
 #======================== Create Plotting Constants =======================
 #TODO: automate the color list, make permanent for each working folder? 
 
@@ -123,7 +72,7 @@ start = datetime.strptime('2005-08-01', '%Y-%m-%d')
 end = datetime.strptime('2018-02-21', '%Y-%m-%d')
 
 peak_dict = store_peak_info(ds.sel(time=slice(start,end)), 'wflow_id', 72)
-Folder_plots = os.path.join(working_folder,'_gauss_figures')  # folder to save plots
+Folder_plots = os.path.join(working_folder,'_figures')  # folder to save plots
 #What if we set the peak finding function to the threshold and then anything that is window width is a miss
 
 
@@ -131,6 +80,8 @@ Folder_plots = os.path.join(working_folder,'_gauss_figures')  # folder to save p
 # # ======================= Plot Peak Timing Hydrograph =======================
 # plot and store peak timing information in a dictionary ''peak timing info'
 # dict is indexed by (key: station id), then by (key: run name), then a tuple of (0: obs indices, 1:sim indices and 2:timing errors)
+
+
 print(f'len ds time: {len(ds.time)}')
 
 plot_peaks_ts(ds, 
