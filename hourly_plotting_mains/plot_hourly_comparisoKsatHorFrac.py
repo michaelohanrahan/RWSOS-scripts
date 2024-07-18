@@ -17,7 +17,7 @@ from file_methods.postprocess import find_model_dirs, find_toml_files, find_outp
 # from metrics.peak_metrics import peak_timing_errors
 from metrics.run_peak_metrics import store_peak_info
 from hydro_plotting.peak_timing import plot_peaks_ts, peak_timing_for_runs, plot_peak_timing_distribution
-
+from scipy.ndimage import gaussian_filter1d
 
 #%%
 # ======================= Set up the working directory =======================
@@ -90,13 +90,17 @@ I like gaussian 4, and mean 5
 '''
 Replace the obs at this location
 '''
+fig, axs = plt.subplots(nrows=1, figsize=(20,6.18))
+axs.plot(ds.time, ds.Q.sel(runs='Obs.', wflow_id=16), label='original')
 sigma = 6/2.0
 series = ds.Q.loc[{'runs': 'Obs.', 'wflow_id': 16}]
 gaussian_smooth = gaussian_filter1d(series, sigma)
-ds.Q.loc[{'runs': 'Obs.', 'wflow_id': 16}] = gaussian_smooth
-ds = ds.sel(wflow_id=[16])
-
-
+ds1 = ds
+ds1.Q.loc[{'runs': 'Obs.', 'wflow_id': 16}] = gaussian_smooth
+ds1 = ds1.sel(wflow_id=[16])
+axs.plot(ds1.time, ds1.Q.sel(runs='Obs.', wflow_id=16), label='smoothed')
+plt.xlim(pd.Timestamp('2011-01-01'), pd.Timestamp('2011-12-31'))
+plt.legend()
 #%%
 #======================== Create Plotting Constants =======================
 #TODO: automate the color list, make permanent for each working folder? 

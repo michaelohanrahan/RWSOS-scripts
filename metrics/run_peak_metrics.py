@@ -11,7 +11,6 @@ def store_peak_info(ds, id_key, window):
 
     Parameters:
     - ds (xarray.Dataset): Dataset containing the data.
-    - df_GaugeToPlot (pandas.DataFrame): DataFrame containing the gauge information.
     - id_key (str): Key to identify the station in the dataset.
     - window (int): Window size for peak timing errors.
 
